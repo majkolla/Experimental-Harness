@@ -1,2 +1,5 @@
-.venv
-
+runs/
+__pycache__/
+.venv/
+.pytest_cache/
+*.analysis.json
