@@ -1,67 +1,38 @@
-import os
-import time
- 
- 
-def _ollama(model, prompt, temperature):
-    from ollama import chat
- 
-    r = chat(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        options={"temperature": temperature},
+"""Moved to `hp/providers.py`.
+
+This module used to hold `dispatch(provider, model, prompt, temperature)`. It was
+replaced rather than extended, because the old signature could not express the
+things the experiment turned out to need:
+
+* provider-native structured output, so a verdict is enforced rather than
+  regex-scraped out of prose;
+* a status taxonomy that distinguishes a timeout from a truncated response from
+  a schema violation from a 400 -- four facts with different scientific meanings
+  and different retry policies, which the old single `status: "error"` flattened
+  into one;
+* request timeouts and classified backoff, with each operational attempt logged
+  separately so the missingness structure stays auditable.
+
+Kept as a shim so nothing that still imports it breaks silently.
+"""
+
+import warnings
+
+from hp.providers import PROVIDERS, call_once, call_with_retries  # noqa: F401
+
+__all__ = ["PROVIDERS", "call_once", "call_with_retries", "dispatch"]
+
+
+def dispatch(provider, model, prompt, temperature, timeout_s=120, max_tokens=2048):
+    """Deprecated. Use `hp.providers.call_with_retries`."""
+    warnings.warn(
+        "harness.dispatch is deprecated; use hp.providers.call_with_retries, "
+        "which enforces the verdict schema and classifies failures.",
+        DeprecationWarning,
+        stacklevel=2,
     )
-    return r.message.content, {"served_model": model}
- 
- 
-def _anthropic(model, prompt, temperature):
-    from anthropic import Anthropic
- 
-    client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    r = client.messages.create(
-        model=model,
-        max_tokens=1024,
-        temperature=temperature,
-        messages=[{"role": "user", "content": prompt}],
+    return call_once(
+        {"provider": provider, "model": model},
+        prompt,
+        {"temperature": temperature, "timeout_s": timeout_s, "max_tokens": max_tokens},
     )
-    return r.content[0].text, {
-        "served_model": r.model,
-        "stop_reason": r.stop_reason,
-        "in_tokens": r.usage.input_tokens,
-        "out_tokens": r.usage.output_tokens,
-    }
- 
- 
-def _openai(model, prompt, temperature):
-    from openai import OpenAI
- 
-    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-    r = client.responses.create(
-        model=model,
-        input=prompt,
-        temperature=temperature,
-    )
-    return r.output_text, {
-        "served_model": r.model,
-        "in_tokens": r.usage.input_tokens,
-        "out_tokens": r.usage.output_tokens,
-    }
- 
- 
-PROVIDERS = {"ollama": _ollama, "anthropic": _anthropic, "openai": _openai}
- 
- 
-def dispatch(provider, model, prompt, temperature):
-    """Returns a dict. status is 'ok' or 'error' -- separate from any verdict."""
-    started = time.time()
-    try:
-        text, meta = PROVIDERS[provider](model, prompt, temperature)
-        status = "ok"
-    except Exception as exc:  # noqa: BLE001 - a failed call is data, not a crash
-        text, meta, status = None, {"error": repr(exc)}, "error"
-    return {
-        "status": status,
-        "response": text,
-        "started": started,
-        "finished": time.time(),
-        **meta,
-    }
