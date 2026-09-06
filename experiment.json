@@ -1,0 +1,33 @@
+{
+  "name": "pilot-01",
+  "seed": 20260821,
+
+  "temperature": 0.7,
+  "max_tokens": 2048,
+  "timeout_s": 120,
+  "max_attempts": 4,
+  "workers": 4,
+  "strict_model_pinning": true,
+
+  "replicates": 6,
+  "packets_per_task": 6,
+  "gate": { "k": 2, "n": 3 },
+  "regimes": ["shared", "diverse"],
+
+  "tasks_dir": "tasks",
+  "prompt_file": "prompts/reviewer.md",
+  "log": "runs/pilot-01.jsonl",
+
+  "models": {
+    "A": { "provider": "anthropic", "model": "claude-sonnet-4-20250514" },
+    "B": { "provider": "openai", "model": "gpt-4.1-2025-04-14" },
+    "C": { "provider": "ollama", "model": "qwen2.5-coder:32b" }
+  },
+
+  "panels": {
+    "AAA": ["A", "A", "A"],
+    "BBB": ["B", "B", "B"],
+    "CCC": ["C", "C", "C"],
+    "ABC": ["A", "B", "C"]
+  }
+}
