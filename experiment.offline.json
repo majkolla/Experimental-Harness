@@ -1,0 +1,58 @@
+{
+  "name": "offline-selftest",
+  "seed": 11,
+
+  "temperature": 0.7,
+  "max_tokens": 512,
+  "timeout_s": 10,
+  "max_attempts": 2,
+  "workers": 4,
+  "strict_model_pinning": true,
+
+  "replicates": 6,
+  "packets_per_task": 6,
+  "gate": { "k": 2, "n": 3 },
+  "regimes": ["shared", "diverse"],
+
+  "tasks_dir": "tasks",
+  "prompt_file": "prompts/reviewer.md",
+  "log": "runs/offline-selftest.jsonl",
+
+  "_note": [
+    "The synthetic provider is a pipeline fixture, not a model. It exercises",
+    "schedule -> dispatch -> log -> estimators -> bootstrap with no network and",
+    "no budget, with a planted shared-packet effect the analysis should recover.",
+    "shared_effect is the lift applied when the packet lands in the misleading",
+    "state, so the shared arm should show it and the diverse arm should dilute it."
+  ],
+  "models": {
+    "A": {
+      "provider": "synthetic",
+      "model": "synth-a-2026-01-01",
+      "base_rate": 0.34,
+      "shared_effect": 0.4,
+      "salt": "A"
+    },
+    "B": {
+      "provider": "synthetic",
+      "model": "synth-b-2026-01-01",
+      "base_rate": 0.38,
+      "shared_effect": 0.4,
+      "salt": "B"
+    },
+    "C": {
+      "provider": "synthetic",
+      "model": "synth-c-2026-01-01",
+      "base_rate": 0.30,
+      "shared_effect": 0.4,
+      "salt": "C"
+    }
+  },
+
+  "panels": {
+    "AAA": ["A", "A", "A"],
+    "BBB": ["B", "B", "B"],
+    "CCC": ["C", "C", "C"],
+    "ABC": ["A", "B", "C"]
+  }
+}
