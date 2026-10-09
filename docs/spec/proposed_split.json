@@ -1,0 +1,183 @@
+{
+ "seed": 20260930,
+ "rule": "apache/struts forced to development; remaining clusters sorted, shuffled with random.Random(20260930), added in order while total <=24 until >=22",
+ "lineage_merges": {
+  "apache/sling-org-apache-sling-xss": "apache/sling",
+  "spring-projects/spring-security-oauth": "spring-projects/spring-security",
+  "neo4j-contrib/neo4j-apoc-procedures": "neo4j/neo4j",
+  "jenkinsci/ccm-plugin": "jenkinsci/jenkins",
+  "jenkinsci/groovy-sandbox": "jenkinsci/jenkins",
+  "jenkinsci/junit-plugin": "jenkinsci/jenkins",
+  "jenkinsci/pipeline-build-step-plugin": "jenkinsci/jenkins",
+  "jenkinsci/subversion-plugin": "jenkinsci/jenkins"
+ },
+ "development": {
+  "apache/struts": [
+   "VUL4J-26",
+   "VUL4J-27",
+   "VUL4J-28",
+   "VUL4J-29",
+   "VUL4J-30",
+   "VUL4J-31",
+   "VUL4J-32",
+   "VUL4J-33",
+   "VUL4J-34",
+   "VUL4J-35"
+  ],
+  "apache/jspwiki": [
+   "VUL4J-18"
+  ],
+  "apache/tika": [
+   "VUL4J-36"
+  ],
+  "spring-projects/spring-data-commons": [
+   "VUL4J-67"
+  ],
+  "apache/commons-compress": [
+   "VUL4J-5",
+   "VUL4J-6",
+   "VUL4J-7",
+   "VUL4J-8"
+  ],
+  "codehaus-plexus/plexus-archiver": [
+   "VUL4J-41"
+  ],
+  "x-stream/xstream": [
+   "VUL4J-78"
+  ],
+  "eclipse/rdf4j": [
+   "VUL4J-43"
+  ],
+  "apache/shiro": [
+   "VUL4J-22"
+  ],
+  "apache/commons-imaging": [
+   "VUL4J-12",
+   "VUL4J-13"
+  ]
+ },
+ "test": {
+  "ESAPI/esapi-java-legacy": [
+   "VUL4J-44"
+  ],
+  "FasterXML/jackson-dataformat-xml": [
+   "VUL4J-46",
+   "VUL4J-47"
+  ],
+  "OpenRefine/OpenRefine": [
+   "VUL4J-64",
+   "VUL4J-65"
+  ],
+  "alibaba/fastjson": [
+   "VUL4J-1"
+  ],
+  "apache/batik": [
+   "VUL4J-2"
+  ],
+  "apache/camel": [
+   "VUL4J-3",
+   "VUL4J-4"
+  ],
+  "apache/commons-configuration": [
+   "VUL4J-9"
+  ],
+  "apache/commons-fileupload": [
+   "VUL4J-10",
+   "VUL4J-11"
+  ],
+  "apache/commons-io": [
+   "VUL4J-14"
+  ],
+  "apache/cxf": [
+   "VUL4J-15",
+   "VUL4J-16"
+  ],
+  "apache/httpcomponents-client": [
+   "VUL4J-17"
+  ],
+  "apache/pdfbox": [
+   "VUL4J-19",
+   "VUL4J-20"
+  ],
+  "apache/santuario-java": [
+   "VUL4J-21"
+  ],
+  "apache/sling": [
+   "VUL4J-23",
+   "VUL4J-24",
+   "VUL4J-25"
+  ],
+  "apache/tomee": [
+   "VUL4J-37"
+  ],
+  "apereo/java-cas-client": [
+   "VUL4J-38"
+  ],
+  "cloudfoundry/uaa": [
+   "VUL4J-39",
+   "VUL4J-40"
+  ],
+  "codehaus-plexus/plexus-utils": [
+   "VUL4J-42"
+  ],
+  "esigate/esigate": [
+   "VUL4J-45"
+  ],
+  "inversoft/prime-jwt": [
+   "VUL4J-48",
+   "VUL4J-49"
+  ],
+  "javamelody/javamelody": [
+   "VUL4J-50"
+  ],
+  "jenkinsci/jenkins": [
+   "VUL4J-51",
+   "VUL4J-52",
+   "VUL4J-53",
+   "VUL4J-54",
+   "VUL4J-55",
+   "VUL4J-56",
+   "VUL4J-57",
+   "VUL4J-58"
+  ],
+  "jhy/jsoup": [
+   "VUL4J-59"
+  ],
+  "nahsra/antisamy": [
+   "VUL4J-60"
+  ],
+  "neo4j/neo4j": [
+   "VUL4J-61",
+   "VUL4J-62"
+  ],
+  "opennetworkinglab/onos": [
+   "VUL4J-63"
+  ],
+  "resteasy/Resteasy": [
+   "VUL4J-66"
+  ],
+  "spring-projects/spring-data-rest": [
+   "VUL4J-68"
+  ],
+  "spring-projects/spring-framework": [
+   "VUL4J-69",
+   "VUL4J-70",
+   "VUL4J-71"
+  ],
+  "spring-projects/spring-security": [
+   "VUL4J-72",
+   "VUL4J-73",
+   "VUL4J-74",
+   "VUL4J-75"
+  ],
+  "square/retrofit": [
+   "VUL4J-76"
+  ],
+  "swagger-api/swagger-parser": [
+   "VUL4J-77"
+  ],
+  "zeroturnaround/zt-zip": [
+   "VUL4J-79"
+  ]
+ }
+}
