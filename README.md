@@ -4,7 +4,72 @@ Apparatus for measuring **correlated false approval** in multi-reviewer LLM code
 review: does a panel of n AI reviewers deliver the reliability a k-of-n gate
 implies, or only the appearance of redundancy?
 
-The harness produces one artefact — an append-only JSONL log of reviewer calls —
+Two studies live in this repository:
+
+* **The v1.3 study (current)**: *Choosing Reviewers for LLM Security Review*,
+  Experiment Specification v1.3 (`docs/spec/`). Exploit-confirmed near-miss
+  patches from real Vul4J CVEs, written by six generators, reviewed by nine
+  reviewers; routing policies (RQ1), cheap panels (RQ2, RQ2o), common mode
+  (RQ3), evidence screen (RQ4), interactions (RQ5, RQ6). Driven by `study.py`.
+* **Experiment 1 (legacy)**: panel compositions x shared/diverse context on a
+  placeholder bank. Merged into v1.3 and never run with paid calls; kept
+  runnable and unchanged (`main.py`, `analyze.py`, section below).
+
+The implementation map (spec section -> module -> test), the invariants, the
+provisional items and what is still a placeholder are in **`docs/study.html`**.
+
+## The v1.3 study
+
+```
+python study.py validate      study.jsonc                    # live config: refused while any pin is TO_PIN_AT_FREEZE
+python study.py selftest      [--full]                        # the whole study offline: 9 synthetic models, mock Vul4J
+python -m pytest tests -q                                     # 318 tests, no network, no paid calls
+
+# a real run, in order (live config, once every pin is set)
+python study.py timing-pilot  study.jsonc --cves VUL4J-51,VUL4J-15,VUL4J-3 --runs 3
+python study.py reproduce     study.jsonc                    # Stage 1, all 79 CVEs
+python study.py generate      study.jsonc --split development  # Stage 2
+python study.py classify      study.jsonc --split development
+python study.py select        study.jsonc --split development  # Stage 4 selection, correction order
+python study.py sibling       study.jsonc --split development  # Stage 3 twins (author-written F)
+python study.py review        study.jsonc --split development --expb   # Stage 5 + Experiment B
+python study.py analyse-dev   study.jsonc                    # thresholds, policies, regret, promotion
+python study.py freeze        study.jsonc                    # opens the test split
+python study.py generate|classify|select|sibling|review study.jsonc --split test
+python study.py confirm       study.jsonc                    # RQ1/RQ2(/RQ2o) with Holm, RQ3-RQ6, report
+python study.py audit-logs    study.jsonc
+```
+
+| Path | Role |
+|---|---|
+| `study.jsonc` / `study.synthetic.jsonc` | live config (every pin a placeholder) / offline config |
+| `hp/study_config.py` | JSONC loader, config and code hashes, freeze, the refusal conditions |
+| `hp/providers/` | Anthropic, OpenAI, Google, open-weight (Ollama + pins), synthetic world, legacy synthetic |
+| `hp/engine.py` | dispatcher: admission per candidate, four-attempt budget across resumes, pins, cost |
+| `hp/bank/` | Vul4J runner, Stage 1 reproduction, generation, classification, selection, twins, split lock |
+| `hp/review/` | e0 builder, Experiment B packets, crossed schedule, dispatch |
+| `hp/analysis/` | rates, thresholds, policies, regret, common mode, confirm, extension, Experiment B, report |
+| `hp/logs.py`, `hp/leaks.py`, `hp/synthworld.py` | log schemas, oracle deny list, synthetic world |
+| `docs/spec/` | SPEC_ANSWERS.md, the registered split; spec v1.3 and the 9 Oct notes go here |
+
+Invariants (each enforced in code and pinned by a test; see `docs/study.html`):
+oracle isolation (builders without oracle parameters + a deny-list scan of every
+input); fail-closed coding (abstain, invalid, timeout, truncation, unresolved);
+snapshot / weights pinning with abort on mismatch; only `ok` counts as done;
+global shuffle + no two calls on one candidate in flight; append-only logs from
+which every number is recomputed; the test split locked until freeze; one
+threshold per reviewer for every policy; trials -> candidate -> CVE -> row ->
+equal-generator average; the core analysis never reads an extension row
+(bit-identical with and without the extension, tested two ways).
+
+---
+
+# Experiment 1 (legacy)
+
+The original design: panel compositions AAA/BBB/CCC/ABC x shared/diverse
+context regimes on a placeholder bank, three confirmatory hypotheses with Holm.
+Merged into the v1.3 study (SPEC_ANSWERS Q0, spec v1.0 section 5.3); everything
+below still runs exactly as before. The harness produces one artefact — an append-only JSONL log of reviewer calls —
 and the analysis recomputes everything from it offline. Companion theory:
 *Formalisms and Modelling Choices* and *Harness Design and Instrumentation*.
 
@@ -12,7 +77,7 @@ and the analysis recomputes everything from it offline. Companion theory:
 python main.py    experiment.json --dry-run     # validate, check balance, print cost. spends nothing
 python main.py    experiment.json               # run or resume
 python analyze.py experiment.json --json out.json
-python -m pytest  tests -q                      # 79 tests, no network required
+python -m pytest  tests -q                      # whole suite (318), no network required
 ```
 
 An offline self-test exercises the whole path with a synthetic provider, so the
@@ -29,7 +94,7 @@ python main.py experiment.offline.json && python analyze.py experiment.offline.j
 | `hp/schema.py` | verdict contract, status taxonomy, strict parsing |
 | `hp/config.py` | config + task-bank validation; every design-invalidating misconfiguration raises |
 | `hp/design.py` | pure schedule construction, B1–B4 asserted mechanically |
-| `hp/providers.py` | one call in, one status-tagged record out; provider-native structured output |
+| `hp/providers/` (was `hp/providers.py`) | one call in, one status-tagged record out; provider-native structured output |
 | `hp/runner.py` | execution, resume, concurrency, provenance, append-only log |
 | `hp/dataset.py` | log → analysis cells; missingness accounting |
 | `hp/estimators.py` | p, q, t, pattern table, recombination null, D, A, Fréchet bounds, n_eff |

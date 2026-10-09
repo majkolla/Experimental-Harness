@@ -1,5 +1,8 @@
 """Schedule construction: a pure function of the config, auditable before spending.
 
+LEGACY (Experiment 1). Kept runnable and unchanged; the v1.3 study does not use
+this module (see docs/study.html).
+
 Vocabulary, because two different indices are easy to conflate:
 
 seat

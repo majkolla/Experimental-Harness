@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Study v1.3 Implementation Map</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ground: #eceff0; --surface: #fafbfb; --sunken: #e2e7e9; --ink: #0d1517; --ink-2: #465257;
+    --ink-3: #78848a; --line: #ccd6d9; --accent: #0a6a70; --accent-2: #d7ebec;
+    --warn: #8a6108; --warn-bg: #f8eed6; --good: #24785a; --good-bg: #e0f1ea; --crit: #a52f2c; --crit-bg: #f9e7e6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground: #0e1315; --surface: #161c1e; --sunken: #1e2528; --ink: #eef3f4; --ink-2: #a8b5b9;
+      --ink-3: #7c888d; --line: #2c3538; --accent: #4dbcc0; --accent-2: #123033;
+      --warn: #dcb35a; --warn-bg: #2d2411; --good: #58c295; --good-bg: #102c22; --crit: #ef8a86; --crit-bg: #33191a;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #0e1315; --surface: #161c1e; --sunken: #1e2528; --ink: #eef3f4; --ink-2: #a8b5b9;
+    --ink-3: #7c888d; --line: #2c3538; --accent: #4dbcc0; --accent-2: #123033;
+    --warn: #dcb35a; --warn-bg: #2d2411; --good: #58c295; --good-bg: #102c22; --crit: #ef8a86; --crit-bg: #33191a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink);
+         font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 19px; margin: 40px 0 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+  p, li { color: var(--ink-2); max-width: 78ch; }
+  code { font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--sunken);
+         padding: 1px 4px; border-radius: 3px; color: var(--ink); }
+  pre { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px;
+        overflow-x: auto; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .sub { color: var(--ink-3); margin: 0 0 20px; }
+  .note { border-left: 3px solid var(--warn); background: var(--warn-bg); padding: 10px 14px; border-radius: 4px; margin: 16px 0; }
+  .note p { margin: 4px 0; color: var(--ink); }
+  .wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: left; vertical-align: top; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  th { background: var(--sunken); font-weight: 600; color: var(--ink); position: sticky; top: 0; }
+  td { color: var(--ink-2); }
+  td:first-child { color: var(--ink); white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  .tag { display: inline-block; font-size: 11.5px; padding: 0 6px; border-radius: 9px; margin-left: 4px; }
+  .prov { background: var(--warn-bg); color: var(--warn); }
+  .ok { background: var(--good-bg); color: var(--good); }
+  .todo { background: var(--crit-bg); color: var(--crit); }
+  ol li, ul li { margin: 3px 0; }
+</style>
+</head>
+<body>
+<main>
+<h1>Study v1.3 implementation map</h1>
+<p class="sub">Experiment-Harness, harness version 0.3.0, branch <code>study-v1.3</code>, 2026-10-09.
+Specification section &rarr; module &rarr; test, the invariants, the provisional items, and what is still a placeholder.</p>
+
+<div class="note">
+  <p><strong>Source of truth.</strong> <code>docs/spec/SPEC_ANSWERS.md</code> (the author's decisions, keyed to v1.3 section
+  numbers), spec v1.0 and the implementation brief. The text of <code>Experiment_Specification_v1_3.md</code> and the
+  9 October <code>experiment_notes.tex</code> were not available when this was written; the details that only the v1.3
+  text fixes are filled in provisionally (marked <span class="tag prov">provisional</span>) and listed in section 5 and in
+  <code>PLAN.md</code> section 10.</p>
+</div>
+
+<h2>1. Pipeline</h2>
+<pre>Stage 1  reproduce      all 79 CVEs, vulnerable + fixed, 10 clean runs each       -> reproduction.jsonl
+Stage 2  generate       10 attempts x (A, B, C, X, Y, Z) per eligible CVE         -> attempts.jsonl (generation)
+         classify       build once, screening run, 10 clean reruns               -> attempts.jsonl (classification)
+Stage 4  select         one near-miss per (CVE, generator), seeded; twin order    -> selection.jsonl
+Stage 3  sibling        author-written F, validated 10/10, rubric flagged         -> siblings.jsonl
+Stage 5  review         e0 (+ Experiment B packets), crossed x x r x j schedule   -> inputs.jsonl, reviews.jsonl
+         analyse-dev    thresholds, policies, regret rule, promotion, feasibility -> thresholds.json, primary_choice.json
+         freeze         config hash, code hash, artefact hashes                    -> freeze.json (opens the test split)
+         (Stages 2-5 on test)
+         confirm        RQ1/RQ2(/RQ2o) with Holm, RQ3-RQ6, sensitivity            -> test_report.json / .txt</pre>
+<p>Run it offline with <code>python study.py selftest</code> (8 + 12 CVEs, about 7 s) or
+<code>python study.py selftest --full</code> (all 79 CVEs, about 25 s). Nine synthetic models, a mock Vul4J, no network.</p>
+
+<h2>2. Specification section &rarr; module &rarr; test</h2>
+<div class="wrap"><table>
+<thead><tr><th>Section</th><th>What</th><th>Module</th><th>Tests (tests/study/)</th></tr></thead>
+<tbody>
+<tr><td>§3, §12.6</td><td>Core analysis never reads an extension row</td><td><code>analysis/data.py</code> (<code>in_view</code>, filtered at load)</td><td><code>test_extension_isolation.py</code> (strip-and-recompute; from-scratch run without the extension)</td></tr>
+<tr><td>§4.4</td><td>Within-patch gap: design check, expectation 0 (Q5)</td><td><code>analysis/commonmode.py</code></td><td><code>test_commonmode.py</code>: within-patch gap &asymp; 0; mean of 36 matchings = h(p&#770;)</td></tr>
+<tr><td>§4.5</td><td>dq, dt, dt/dq vs the benchmark reference (Q6)</td><td><code>analysis/commonmode.py</code></td><td>concentrated cause &rarr; dt/dq &gt; 3/2; diffuse &rarr; 1</td></tr>
+<tr><td>§4.7</td><td>0 / 0.216 / 0.30 / 0.45 at 30% each (Q20)</td><td><code>estimators.gate_risk</code>, <code>analysis/commonmode.py</code></td><td><code>test_three_reviewers_at_thirty_percent_span_zero_to_forty_five</code></td></tr>
+<tr><td>§5.4</td><td>Registered split; test lock until freeze</td><td><code>bank/split.py</code>, <code>study_config.freeze</code></td><td><code>test_bank_pipeline.py</code> lock tests; <code>test_study_config.py</code> split SHA</td></tr>
+<tr><td>§6</td><td>Fixed parameters, defaults in config, placeholders, pins (Q16, Q17)</td><td><code>study_config.py</code>, <code>study.jsonc</code>, <code>providers/</code></td><td><code>test_study_config.py</code> (37), <code>test_openweight.py</code>, <code>test_providers_v13.py</code></td></tr>
+<tr><td>§7</td><td>Stage 1: 10/10 rule, signatures, ordinary/flaky tests, statuses</td><td><code>bank/reproduce.py</code>, <code>bank/vul4j.py</code></td><td><code>test_bank_pipeline.py</code> reproduction tests, surefire parsing</td></tr>
+<tr><td>§7 step 6</td><td><code>suite_unstable</code> rule <span class="tag prov">provisional</span></td><td><code>bank/reproduce.status_for</code></td><td><code>test_status_rule</code></td></tr>
+<tr><td>§8</td><td>Generation (no PoV channel), six classes, signature match (Q14, Q19)</td><td><code>bank/generate.py</code>, <code>bank/classify.py</code></td><td><code>test_classify.py</code> (incl. different signature &rarr; not a near-miss), <code>test_bank_pipeline.py</code></td></tr>
+<tr><td>§9</td><td>Twins: author F, 10/10, rubric flagged, correction order, stop point (Q15, Q21)</td><td><code>bank/sibling.py</code>, <code>bank/select.py</code></td><td><code>test_twins_are_validated_and_measured</code>, <code>test_live_author_stops_and_invalid_twins_can_be_replaced</code></td></tr>
+<tr><td>§10</td><td>Dedup, seeded selection, inclusion probability, review-independent</td><td><code>bank/select.py</code></td><td><code>test_selection_does_not_change_when_review_outcomes_are_permuted</code></td></tr>
+<tr><td>§11.1</td><td>e0, &plusmn;50 lines, bytes/4 cap, overflow, stripping (Q11, Q12)</td><td><code>review/input.py</code>, <code>leaks.py</code></td><td><code>test_review_input.py</code>, <code>test_leaks.py</code>, <code>test_review_isolation.py</code></td></tr>
+<tr><td>§11.3</td><td>verdict / risk / justification (Q4)</td><td><code>schema.py</code> (<code>REVIEW_V13</code>)</td><td><code>test_schema_v13.py</code></td></tr>
+<tr><td>§11.4</td><td>Crossed schedule, shuffle, no two calls on a candidate in flight</td><td><code>review/schedule.py</code>, <code>engine.py</code>, <code>runner.eligible_order</code></td><td><code>test_schedule.py</code>, <code>test_dispatch.py</code></td></tr>
+<tr><td>§11.5</td><td>Decision rule, literal (Q3); disagreement rate</td><td><code>analysis/data.py</code></td><td><code>test_rates.py</code></td></tr>
+<tr><td>§11.6</td><td>Six statuses (Q2); fail-closed; 4 attempts across resumes (Q1)</td><td><code>schema.py</code>, <code>engine.py</code>, <code>analysis/data.py</code></td><td><code>test_fail_closed_coding</code>, <code>test_attempt_budget_continues_across_resumes</code></td></tr>
+<tr><td>§12.2</td><td>Fixed, Generator-aware, Exclusion; ties by cost then id</td><td><code>analysis/policies.py</code></td><td><code>test_exclusion_equals_fixed_in_every_row_except_the_family_of_r_star</code>, <code>test_ties_are_broken_by_cost_then_model_id</code></td></tr>
+<tr><td>§12.3</td><td>One threshold per reviewer, t_p, t_o, all on core-bank dev rows (Q7, Q10)</td><td><code>analysis/thresholds.py</code></td><td><code>test_threshold_is_the_smallest_observed_cutoff_meeting_the_target</code>, <code>test_one_threshold_per_reviewer_is_used_by_every_policy</code></td></tr>
+<tr><td>§12.4</td><td>Regret rule, primary contrast</td><td><code>analysis/regret.py</code></td><td><code>test_regret_rule_passes_two_tied_reviewers_and_fails_a_clearly_worse_one</code></td></tr>
+<tr><td>§12.7</td><td><code>paid_block_on_test</code> (Q21)</td><td><code>review/schedule.py</code></td><td><code>test_paid_block_on_test_false_moves_commercial_reviewers_off_extension_test_pairs</code></td></tr>
+<tr><td>§13</td><td>Experiment B: packets, PoV file excluded, cheap reviewers, 12 CVEs (Q13)</td><td><code>review/packets.py</code>, <code>review/schedule.py</code>, <code>analysis/expb.py</code></td><td><code>test_dispatch.py</code> packet tests, <code>test_experiment_b_is_at_most_1944_calls_and_development_only</code></td></tr>
+<tr><td>§14.1, §15.1</td><td>U, A per cell; trials &rarr; candidate &rarr; CVE &rarr; row &rarr; equal-generator mean</td><td><code>analysis/rates.py</code></td><td><code>test_rates_are_averaged_per_generator_never_pooled</code></td></tr>
+<tr><td>§14.3, §14.3b</td><td>RQ2, RQ2o (cheap / open 2-of-3 vs strong*)</td><td><code>analysis/confirm.py</code></td><td><code>test_inference.py</code>, <code>test_study_e2e.py</code></td></tr>
+<tr><td>§14.4</td><td>D_diag (probability and logit scale), core and open blocks</td><td><code>analysis/rates.d_diag</code>, <code>analysis/extension.diag_blocks</code></td><td><code>test_d_diag_recovers_a_planted_diagonal_bump_and_ignores_additive_effects</code></td></tr>
+<tr><td>§14.5</td><td>C on valid trials only, exclusions counted (Q1)</td><td><code>analysis/rates.discrimination</code></td><td><code>test_discrimination_uses_valid_trials_only_and_counts_exclusions</code></td></tr>
+<tr><td>§14.6</td><td>RQ3 and its drivers (generator, CWE, similarity, patch size)</td><td><code>analysis/commonmode.py</code></td><td><code>test_commonmode.py</code></td></tr>
+<tr><td>§14.7</td><td>Pipeline risk, commercial vs open</td><td><code>analysis/extension.pipeline_risk</code></td><td><code>test_full_report_has_every_section</code></td></tr>
+<tr><td>§14.8</td><td>&Delta;6 (RQ6), cross-family cells, equal reviewer weight</td><td><code>analysis/extension.delta6</code></td><td><code>test_delta6_uses_cross_family_cells_with_equal_reviewer_weight</code></td></tr>
+<tr><td>§15.2</td><td>Cluster bootstrap, frame from core rows (Q9)</td><td><code>analysis/confirm.bootstrap</code></td><td><code>test_extension_isolation.py</code></td></tr>
+<tr><td>§15.3, §15.4</td><td>Component p-values, max, Holm at 0.025, adjusted bounds, equivalence outside (Q8)</td><td><code>analysis/confirm.decide</code> (legacy <code>bootstrap.holm</code>)</td><td><code>test_inference.py</code></td></tr>
+<tr><td>§15.5</td><td>Sensitivity analyses 1-9</td><td><code>analysis/report.sensitivity</code></td><td><code>test_full_report_has_every_section</code></td></tr>
+<tr><td>§15.6</td><td>Feasibility half-widths <span class="tag prov">provisional draws</span></td><td><code>analysis/regret.projected_half_widths</code></td><td>dev report</td></tr>
+<tr><td>§15.7</td><td>RQ2o promotion: all three conditions (Q21)</td><td><code>analysis/extension.decide_promotion</code></td><td><code>test_rq2o_promotion_fires_only_when_all_three_conditions_hold</code></td></tr>
+<tr><td>§17</td><td>Schedule sizes 2,484 / 6,048 / 7,452 / 18,144 / &le; 1,944</td><td><code>review/schedule.py</code></td><td><code>test_schedule_sizes_at_the_maxima</code></td></tr>
+<tr><td>§18.3</td><td>Logs, extra logs (Q18), recomputable from the logs alone</td><td><code>logs.py</code></td><td><code>test_logs.py</code>, <code>test_every_number_is_recomputable_from_the_logs_alone</code></td></tr>
+<tr><td>§19</td><td>Freeze; confirm refuses unless frozen</td><td><code>study_config.freeze</code>, <code>analysis/report.confirm</code></td><td><code>test_freeze_round_trip_and_every_way_to_break_it</code>, <code>test_confirm_refuses_an_unfrozen_study</code></td></tr>
+</tbody></table></div>
+
+<h2>3. Invariants</h2>
+<div class="wrap"><table>
+<thead><tr><th>Invariant</th><th>Enforced in</th><th>Pinned by</th></tr></thead>
+<tbody>
+<tr><td>Oracle isolation</td><td>builders without oracle parameters (<code>generation_input</code>, <code>build_review_input</code>); deny-list scan of every input (<code>leaks.py</code>); <code>_context</code> only for the synthetic backend</td><td><code>test_review_isolation.py</code>, <code>test_leaks.py</code>, legacy <code>test_oracle_isolation.py</code></td></tr>
+<tr><td>Fail-closed coding (new path)</td><td><code>analysis/data.approve</code></td><td><code>test_fail_closed_coding</code></td></tr>
+<tr><td>Pins, abort on mismatch</td><td><code>engine.run_calls</code> (served snapshot), <code>providers/openweight.py</code> (weights, precision, stack: start, end, reload)</td><td><code>test_a_served_snapshot_mismatch_is_logged_then_stops_the_run</code>, <code>test_openweight.py</code></td></tr>
+<tr><td>Only <code>ok</code> is done; closed calls never re-rolled</td><td><code>engine.closed_calls</code></td><td><code>test_a_non_retryable_failure_closes_the_call</code></td></tr>
+<tr><td>Global shuffle + admission rule</td><td><code>review/schedule.build</code>, <code>runner.eligible_order</code></td><td><code>test_the_schedule_is_globally_shuffled_and_seeded</code>, <code>test_admission_never_puts_two_calls_on_one_candidate_in_flight</code></td></tr>
+<tr><td>Append-only logs</td><td><code>logs.append</code></td><td><code>test_logs_are_only_ever_appended</code></td></tr>
+<tr><td>Test split locked until freeze</td><td><code>bank/split.assert_accessible</code>, <code>study_config.freeze_status</code></td><td><code>test_test_split_is_locked_until_freeze</code></td></tr>
+<tr><td>One threshold per reviewer</td><td><code>analysis/thresholds.py</code> (no generator argument exists)</td><td><code>test_one_threshold_per_reviewer_is_used_by_every_policy</code></td></tr>
+<tr><td>Never pool calls</td><td><code>analysis/rates.Rates</code></td><td><code>test_rates_are_averaged_per_generator_never_pooled</code></td></tr>
+<tr><td>Core never reads extension rows</td><td><code>analysis/data.in_view</code>; own bootstrap streams</td><td><code>test_extension_isolation.py</code></td></tr>
+<tr><td>No network, no paid calls in tests</td><td><code>tests/conftest.py</code> guard; synthetic mode refuses real providers</td><td>whole suite</td></tr>
+</tbody></table></div>
+
+<h2>4. Config refusal conditions</h2>
+<p><code>hp/study_config.load</code> lists every problem and refuses: missing keys (no silent defaults); any
+<code>TO_PIN_AT_FREEZE</code> in live mode; a real provider in synthetic mode, a synthetic provider or the mock Vul4J in live
+mode; roles, families, tiers that differ from the design; per-provider pin rules; open-weight checksum, precision, stack
+and context; temperature &le; 0 or top-p outside (0, 1]; an omitted sampling parameter without a deviation note; trials
+&ne; 3 or a gate other than 2-of-3; more than 4 attempts; fewer than 2,000 / 10,000 draws in live mode;
+<code>extension.enabled</code> not set explicitly; an unknown <code>rq2o_mode</code>; a changed split file; missing prompt
+slots; open models in Experiment B; an unknown suite scope; a freeze block whose config, code or artefact hashes no longer
+match. Every value the specification marks as a default carries a <code>// [default ...]</code> comment, checked by a test.</p>
+
+<h2>5. Provisional items (reconcile with the v1.3 text)</h2>
+<ol>
+<li><code>suite_unstable</code> (§7 step 6): an incomplete run or an empty ordinary-test set.</li>
+<li>Which values are [default]: taken from v1.0 §6 plus the extension flags.</li>
+<li><code>fixed_sequence</code>: RQ2o tested after RQ2, adjusted p = max(adjusted p of RQ2, p of RQ2o).</li>
+<li>RQ2o test margins: the RQ2 margins.</li>
+<li>Feasibility simulation (§15.6): <code>regret_draws</code> resamples of development clusters up to the test cluster count.</li>
+<li>RQ6 = &Delta;6.</li>
+<li>Fixed model-ID order for ties: ASCII order of model references.</li>
+<li>Policy pools: r*, Generator-aware and Exclusion over the six core reviewers.</li>
+<li>Exclusion regret: the replacement for the generator in fam(r*), on overall U.</li>
+<li>Logit scale: empirical logit with &epsilon; = 1/(2N).</li>
+<li>Indeterminate-adjacent CVEs (§15.5 item 7): any indeterminate core attempt.</li>
+<li>RQ3 strata: terciles on the analysed split; weakness class = advisory CWE.</li>
+<li>Experiment B subset: 12 seeded development CVEs among those with a core pair.</li>
+<li>Failure signature: (exception type, normalised message, first frame in the PoV test class).</li>
+<li>Cost: summed over every attempt of a call.</li>
+<li>A call closes on <code>ok</code>, on 4 attempts, or on a non-retryable status; resumes never re-roll a closed call.</li>
+<li>A review input that trips the leak scan excludes the pair (status <code>leak</code>), like an overflow.</li>
+<li><code>inputs.jsonl</code> is logged in addition to the Q18 logs (it records overflow and leak exclusions).</li>
+<li>Strong panel (RQ3, descriptive): each member at its own threshold; cheap panel at t_p; open panel at t_o.</li>
+<li>Discrimination: a trial is valid if its call ended <code>ok</code> (an abstention with a risk score counts).</li>
+</ol>
+
+<h2>6. Still a placeholder, or unverified offline</h2>
+<ul>
+<li><span class="tag todo">pin</span> Model ids and snapshots for A, B, C, a, b, c; <code>reasoning_params</code> per model; any sampling deviation (with a note); the pin-rule regexes.</li>
+<li><span class="tag todo">pin</span> Open weights X, Y, Z: model, weights SHA-256, precision, serving stack, host, context length, GPUs; <code>allowed_precisions</code>.</li>
+<li><span class="tag todo">pin</span> The price sheet for all nine models (hosted price for X, Y, Z) and the GPU-hour price.</li>
+<li><span class="tag todo">verify</span> Google adapter against the installed <code>google-genai</code> SDK (field names, <code>HttpOptions</code> timeout units); tested with a fake client only. Install <code>openai</code> and <code>google-genai</code>.</li>
+<li><span class="tag todo">verify</span> Anthropic forced tool use together with the chosen reasoning setting (<code>tool_choice: "auto"</code> is available per model).</li>
+<li><span class="tag todo">verify</span> <code>ContainerVul4J</code>: image and digest, and every command line (<code>vul4j info / checkout / apply / compile / test --tests</code>), the surefire report location, the clean state between reruns, and the metadata it reads (PoV tests and output, commits, module tests).</li>
+<li><span class="tag todo">write</span> Advisories per CVE (<code>bank_inputs/advisories/&lt;cve&gt;.json</code>: CWE and a neutral summary without ids or project names).</li>
+<li><span class="tag todo">write</span> Twins: the author's F diffs in correction order (<code>bank_inputs/siblings/&lt;pair_id&gt;.diff</code>).</li>
+<li><span class="tag todo">run</span> The timing pilot on Jenkins, CXF and Camel; then choose <code>stage1.suite_scope</code>.</li>
+<li><span class="tag todo">add</span> <code>Experiment_Specification_v1_3.md</code> and the 9 October notes to <code>docs/spec/</code>; reconcile section 5.</li>
+</ul>
+
+<h2>7. Experiment 1 (legacy)</h2>
+<p>Unchanged and runnable: <code>config</code>, <code>design</code>, <code>dataset</code>, <code>report</code> (legacy), driven by
+<code>main.py</code> and <code>analyze.py</code>; the 79 original tests pass untouched. <code>runner.eligible_order</code>,
+<code>bootstrap.holm</code> and the <code>estimators</code> are reused by the new study. See <code>docs/how-it-works.html</code>
+and <code>docs/internals.html</code> for that design.</p>
+</main>
+</body>
+</html>

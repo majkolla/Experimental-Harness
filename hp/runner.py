@@ -1,5 +1,8 @@
 """Execution: resume, concurrency, provenance, append-only log.
 
+SHARED: written for Experiment 1, reused unchanged by the v1.3 study
+(the admission rule `eligible_order`, via hp/engine.py).
+
 The log is the experiment's only durable artefact. It is append-only, one JSON
 object per line, and every derived quantity is recomputed from it offline -- so
 an aggregation bug is fixable without re-running a single model.

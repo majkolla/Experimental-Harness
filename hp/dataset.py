@@ -1,5 +1,8 @@
 """Turn the raw append-only log into analysis cells.
 
+LEGACY (Experiment 1). Kept runnable and unchanged; the v1.3 study does not use
+this module (see docs/study.html).
+
 The log is read-only input. Nothing in here writes to it, and every derived
 quantity is recomputed on each run, so an aggregation bug never costs a model
 call to fix.

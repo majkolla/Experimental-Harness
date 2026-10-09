@@ -1,5 +1,8 @@
 """Offline analysis CLI. Reads the frozen log, writes tables and a JSON blob.
 
+LEGACY (Experiment 1). Kept runnable and unchanged; the v1.3 study does not use
+this module (see docs/study.html).
+
 Reporting discipline enforced here:
 
 * D (percentage points) is primary; A (amplification) is secondary, never

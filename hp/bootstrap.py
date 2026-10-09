@@ -1,5 +1,8 @@
 """Two-stage aggregation, cluster bootstrap, contrasts, Holm.
 
+SHARED: written for Experiment 1, reused unchanged by the v1.3 study
+(holm via hp/analysis/confirm.py).
+
 The inferential n is the number of independent clusters, not the number of
 calls. With 60 tasks x 4 panels x 2 regimes x 24 replicates x 3 reviewers there
 are ~34,000 reviewer calls and 60 clusters; a call-wise standard error is about

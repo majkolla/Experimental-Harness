@@ -1,5 +1,8 @@
 """Dependence estimators, computed offline from the frozen log.
 
+SHARED: written for Experiment 1, reused unchanged by the v1.3 study
+(gate_risk, pairwise, joint_all, recomb_* via hp/analysis/commonmode.py).
+
 Naming follows *Formalisms and Modelling Choices*:
 
     p_j       marginal false-approval rate of reviewer channel j

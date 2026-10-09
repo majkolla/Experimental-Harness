@@ -1,5 +1,8 @@
 """Load and validate the experiment configuration and the task bank.
 
+LEGACY (Experiment 1). Kept runnable and unchanged; the v1.3 study uses only
+`ConfigError` from it (its own loader is hp/study_config.py; see docs/study.html).
+
 Everything in here runs before a single token is spent. A misconfiguration
 that would invalidate the design raises; it does not warn. The relevant
 failure mode is not "the run crashes", it is "the run completes and the

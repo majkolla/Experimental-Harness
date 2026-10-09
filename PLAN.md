@@ -1,6 +1,8 @@
 # PLAN: implement Experiment Specification v1.3 in `Experimental-Harness`
 
-Step 0 deliverable, written 2026-10-09; **revised the same day after `docs/spec/SPEC_ANSWERS.md`** (see §9 and §10). Approved: "if nothing new conflicts, proceed with WP1". Work happens on branch `study-v1.3`; WP0 (baseline commit) is done.
+Step 0 deliverable, written 2026-10-09; **revised the same day after `docs/spec/SPEC_ANSWERS.md`** (see §9 and §10). Approved: "if nothing new conflicts, proceed with WP1". Work happens on branch `study-v1.3`.
+
+**Progress (2026-10-09): WP0-WP8 done**, one commit each on `study-v1.3`; 318 tests (79 legacy + 239 new), about 33 s, Python 3.9 and 3.13, no network. Implementation map: `docs/study.html`.
 
 **Source of truth for this revision:** `SPEC_ANSWERS.md` + spec v1.0 + the brief. `Experiment_Specification_v1_3.md` and the 9 Oct `experiment_notes.tex` were not delivered (not in the repo, the project or the chat), so the few details that only v1.3 itself fixes are filled in provisionally and listed in §10.
 
@@ -332,4 +334,9 @@ These are details that v1.3 itself fixes but neither SPEC_ANSWERS, v1.0 nor the 
 13. **Experiment B subset.** 12 development CVEs drawn by seed from those with at least one core pair.
 14. **Signature.** (exception type, whitespace-normalised message, first stack frame inside the PoV test class).
 15. **Cost.** Summed over every logged attempt of a call, retries included.
+16. **Closing a call.** A call closes on `ok`, on 4 logged attempts, or on a non-retryable status (schema_invalid, truncated, request_error); a resume continues only calls cut off while still retryable, so results never depend on how often a run was resumed.
+17. **Leak scan hit.** A review input that trips the deny list excludes the pair (status `leak`, V and F together), like an overflow, and is reported.
+18. **`inputs.jsonl`.** Logged in addition to the Q18 logs; it records overflow and leak exclusions.
+19. **Panels in RQ3.** Cheap panel at t_p (primary), strong panel with each member at its own threshold (descriptive), open panel at t_o.
+20. **Valid trial for C.** A call that ended `ok` (an abstention with a risk score counts).
 
