@@ -14,6 +14,7 @@
     python study.py freeze        study.jsonc                 # opens the test split
     python study.py confirm       study.jsonc                 # test-set inference and the report
     python study.py selftest      [--full] [--dir DIR]        # whole pipeline offline, synthetic
+    python study.py audit-logs    study.jsonc                 # every row against its schema
 
 Every command validates the config first (a live config refuses to run while
 any pin is still a placeholder) and appends to the logs under `paths.runs`.
@@ -203,6 +204,13 @@ def cmd_selftest(a):
     print(f"self-test directory: {d}")
 
 
+def cmd_audit_logs(a):
+    cfg, rd = _cfg(a)
+    for fname, counts in logs.audit(rd).items():
+        print(f"{fname:<20} {counts}")
+    print("every row has every required field")
+
+
 COMMANDS = {
     "validate": cmd_validate,
     "timing-pilot": cmd_timing_pilot,
@@ -217,6 +225,7 @@ COMMANDS = {
     "freeze": cmd_freeze,
     "confirm": cmd_confirm,
     "selftest": cmd_selftest,
+    "audit-logs": cmd_audit_logs,
 }
 
 

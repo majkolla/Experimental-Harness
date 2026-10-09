@@ -18,6 +18,21 @@ sibling), and readers take the last.
 `inputs.jsonl` goes beyond the Q18 list: it is what records a pair that was
 not reviewed because its diff exceeds the input cap (`review_input_overflow`),
 so that exclusion is recomputable too.
+
+Section 18.3 fields and where they live:
+
+* attempts.jsonl holds two row kinds joined on `attempt_id`: `generation`
+  (attempt_id, cve, cluster, generator, snapshot, prompt_sha, temperature,
+  seed, diff_sha, tokens, cost, plus the call's status and attempt counter
+  `call_attempt`) and `classification` (class, rerun_results,
+  signature_match, similarity_to_human, plus reason, scope, patch size).
+* reviews.jsonl: every 18.3 field; `latency` is logged as `latency_s`,
+  `verdict` is the reviewer's verdict string, `attempt` the operational retry
+  counter. Extension fields (`weights_sha`, `precision`, `serving_stack`,
+  `gpu_seconds`, `cost_sensitivity`) are present on every row and null for
+  commercial models.
+* `seed` is the derived per-call seed of the harness (retry jitter,
+  synthetic draws); providers' own sampling is not seeded.
 """
 
 import json
@@ -142,3 +157,19 @@ def latest(rows, key):
     for r in rows:
         out[r[key] if isinstance(key, str) else key(r)] = r
     return out
+
+
+def audit(runs_dir):
+    """Validate every row of every log. Returns {file: {kind: rows}}; raises on a bad row."""
+    out = {}
+    for name, fname in FILES.items():
+        counts = {}
+        for i, r in enumerate(read(pathlib.Path(runs_dir) / fname), 1):
+            try:
+                check_row(r)
+            except LogSchemaError as exc:
+                raise LogSchemaError(f"{fname}:{i}: {exc}")
+            counts[r["kind"]] = counts.get(r["kind"], 0) + 1
+        out[fname] = counts
+    return out
+
