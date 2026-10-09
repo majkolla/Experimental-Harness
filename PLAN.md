@@ -292,28 +292,29 @@ Items 2–8 are taken as approved together with the plan. Item 1 is superseded b
 
 | Q | Decision | Implemented in | Tested in |
 |---|---|---|---|
-| Q1 | Fail-closed on the new path only; unresolved = no `ok` after 4 attempts **across resumes**; unresolved counts per (reviewer, state) | `review/dispatch.py` (attempt budget counted from the log), `analysis/data.py` (coding), `analysis/report.py` | `test_dispatch.py`, `test_rates.py` |
-| Q1 | C uses valid trials only; pairs without a valid V or F trial excluded and counted | `analysis/rates.py::discrimination` | `test_rates.py` |
+| Q1 | Fail-closed on the new path only; unresolved = no `ok` after 4 attempts **across resumes**; unresolved counts per (reviewer, state) | `engine.py` (attempt budget counted from the log, each attempt logged as it ends), `analysis/data.py` (coding), `analysis/rates.cell_table` + `analysis/report.py` (counts next to every rate) | `test_dispatch.py`, `test_rates.py`, `test_review_fixes.py` |
+| Q1 | C uses valid trials only; pairs without a valid V or F trial excluded and counted | `analysis/rates.py::discrimination`, `rates.cell_table`, `rates.c_exclusions` | `test_rates.py`, `test_review_fixes.py` |
 | Q1 | Worst-case sensitivity: abstain/invalid/unresolved = approve on V, reject on F | `analysis/data.py` coding `worst_case` | `test_rates.py` |
 | Q2 | Keep the code's status names | `schema.py` (unchanged) | legacy `test_schema.py` |
 | Q3 | Literal rule (a reject verdict with risk ≤ t approves); verdict–threshold disagreement rate per reviewer | `analysis/data.py`, `analysis/report.py` | `test_rates.py` |
 | Q4 | Risk: any number in [0, 100]; long justification valid; `justification_words` recorded | `schema.py` v1.3 contract | `test_schema_v13.py` |
 | Q5 | Within-patch gap = plug-in, labelled "design check, expectation 0"; distinct-trial recombination reported next to it | `analysis/commonmode.py` | `test_commonmode.py` |
 | Q6 | Benchmark-level reference is primary for dq, dt, dt/dq; within-patch versions logged and labelled | `analysis/commonmode.py` | `test_commonmode.py` |
-| Q7 | Hierarchical aggregation; feasibility per reviewer; row-level A reported; panel primary = mean over 36 matchings = h(p̂(x)); identity matching is the check | `analysis/rates.py`, `analysis/thresholds.py`, `analysis/commonmode.py` | `test_thresholds.py`, `test_commonmode.py` |
-| Q8 | Two-sided 95% percentile intervals reported; one-sided bootstrap p per component at 0.025; hypothesis p = max; cost ratio a component; Holm at one-sided 0.025 with adjusted bounds; RQ1 equivalence outside Holm | `analysis/confirm.py` (reuses `bootstrap.holm`) | `test_confirm.py` |
+| Q7 | Hierarchical aggregation; feasibility per reviewer; row-level A reported; panel primary = mean over 36 matchings = h(p̂(x)); identity matching is the check | `analysis/rates.py`, `analysis/thresholds.py`, `analysis/commonmode.py` | `test_thresholds_policies.py`, `test_commonmode.py` |
+| Q8 | Two-sided 95% percentile intervals reported; one-sided bootstrap p per component at 0.025; hypothesis p = max; cost ratio a component; Holm at one-sided 0.025 with adjusted bounds; RQ1 equivalence outside Holm | `analysis/confirm.py` (reuses `bootstrap.holm`) | `test_inference.py`, `test_review_fixes.py` (bounds ⇔ p-values) |
 | Q9 | Core bootstrap frame = clusters with ≥ 1 evaluable core pair, from core rows only; extension uses its own list | `analysis/confirm.py`, `analysis/extension.py` | `test_extension_isolation.py` |
-| Q10 | **All** thresholds (nine reviewers, t_p, t_o) fit on core development rows only | `analysis/thresholds.py` | `test_thresholds.py`, `test_extension_isolation.py` |
+| Q10 | **All** thresholds (nine reviewers, t_p, t_o) fit on core development rows only | `analysis/thresholds.py` | `test_thresholds_policies.py`, `test_extension_isolation.py` |
 | Q11 | bytes/4 proxy; enclosing method ±50 lines; symmetric context trimming; `truncated_context`; diff over cap → pair `indeterminate (review_input_overflow)` | `review/input.py` | `test_review_input.py` |
 | Q12 | Strict deny list; packages, imports and paths kept; allowed project tokens recorded per CVE | `review/input.py` | `test_review_isolation.py` |
-| Q13 | Exclude the whole PoV test file; lightweight finder, method recorded | `review/packets.py` | `test_packets.py` |
+| Q13 | Exclude the whole PoV test file; lightweight finder, method recorded | `review/packets.py` | `test_dispatch.py` (packet tests), `test_review_isolation.py` |
 | Q14 | Build once per attempt, then 10 clean test reruns; ordinary failure inside reruns → `indeterminate (inconsistent)` | `bank/classify.py`, `bank/vul4j.py` | `test_classify.py` |
-| Q15 | ≤ 10 lines flagged, not enforced; comment definition; select then correct; infeasible F drops the cell, no redraw | `bank/sibling.py`, `bank/select.py` | `test_sibling.py`, `test_select.py` |
+| Q15 | ≤ 10 lines flagged, not enforced; comment definition; select then correct; infeasible F drops the cell, no redraw | `bank/sibling.py`, `bank/select.py` | `test_bank_pipeline.py` |
 | Q16 | Sampling parameters may be omitted only via an explicit per-model flag with a deviation note; logged and reported | `study_config.py`, providers | `test_study_config.py` |
-| Q17 | Pin rule per provider (config regexes); echo abort for API models; open weights verified at start-up, end of run and on every server (re)load | `study_config.py`, `providers/openweight.py`, `review/dispatch.py` | `test_openweight.py` |
+| Q17 | Pin rule per provider (config regexes); echo abort for API models; open weights verified at start-up, end of run and on every server (re)load | `study_config.py`, `providers/openweight.py`, `engine.py` | `test_openweight.py`, `test_dispatch.py` |
 | Q18 | Extra logs `reproduction.jsonl`, `selection.jsonl`, `siblings.jsonl`, `freeze.json` | `hp/logs.py` | `test_logs.py`, `test_study_e2e.py` |
-| Q19 | Both suite scopes behind config (default full); `timing_pilot` command | `bank/vul4j.py`, `bank/classify.py`, `study.py timing-pilot` | `test_classify.py`, `test_timing_pilot.py` |
-| Q21 | RQ2o, promotion rule, Δ₆, open-block D_diag, pipeline split, `paid_block_on_test`, explicit `extension.enabled`, Exp B without open models, seeded correction order | `analysis/extension.py`, `analysis/regret.py`, `review/schedule.py`, `bank/select.py`, `study_config.py` | `test_extension.py`, `test_schedule.py` |
+| Q20 | Both v1.0 statements superseded: 0-45% on 2-of-3 at 30% each; one threshold per reviewer | `estimators.gate_risk`, `analysis/thresholds.py` | `test_commonmode.py`, `test_thresholds_policies.py` |
+| Q19 | Both suite scopes behind config (default full); `timing_pilot` command | `bank/vul4j.py`, `bank/classify.py`, `bank/reproduce.timing_pilot`, `study.py timing-pilot` | `test_classify.py`, `test_bank_pipeline.py`, `test_study_e2e.py` |
+| Q21 | RQ2o, promotion rule, Δ₆, open-block D_diag, pipeline split, `paid_block_on_test`, explicit `extension.enabled`, Exp B without open models, seeded correction order | `analysis/extension.py`, `analysis/regret.py`, `review/schedule.py`, `bank/select.py`, `study_config.py` | `test_inference.py`, `test_extension_isolation.py`, `test_schedule.py`, `test_study_config.py` |
 
 ## 10. v1.3 reconciliation list (filled provisionally, check against v1.3 when it arrives)
 
