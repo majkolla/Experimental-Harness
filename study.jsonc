@@ -1,0 +1,126 @@
+// Study configuration: Experiment Specification v1.3 (live mode).
+//
+// Every value still equal to "TO_PIN_AT_FREEZE" must be pinned before a live run;
+// hp/study_config.py refuses to load a live config while any placeholder remains.
+// Comments marked [default ...] are values the specification marks as defaults;
+// [v1.0 §n] means the marker was taken from spec v1.0 and must be checked against v1.3.
+{
+  "study": "llm-security-review",
+  "spec_version": "1.3",
+  "mode": "live",
+  "seed": 20260930,                                   // §6 global seed; every derived seed is logged
+  "split": {"file": "docs/spec/proposed_split.json",
+            "sha256": "b0ffb4cf5723e4c21480cef1b704ed6abdbf889d4f072a2316986a04219445d7"},
+  "paths": {"runs": "runs/study", "inputs": "bank_inputs"},
+  "prompts": {"review": "prompts/review_v13.md", "generate": "prompts/generate_v13.md"},
+
+  // Nine models. Families and tiers are fixed by the design (§2); ids are pinned at freeze.
+  "models": {
+    "A": {"roles": ["generator", "reviewer"], "family": 1, "tier": "strong", "provider": "anthropic",
+          "model": "TO_PIN_AT_FREEZE", "snapshot": "TO_PIN_AT_FREEZE",
+          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
+    "B": {"roles": ["generator", "reviewer"], "family": 2, "tier": "strong", "provider": "openai",
+          "model": "TO_PIN_AT_FREEZE", "snapshot": "TO_PIN_AT_FREEZE",
+          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
+    "C": {"roles": ["generator", "reviewer"], "family": 3, "tier": "strong", "provider": "google",
+          "model": "TO_PIN_AT_FREEZE", "snapshot": "TO_PIN_AT_FREEZE", "api_key_env": "GOOGLE_API_KEY",
+          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
+    "a": {"roles": ["reviewer"], "family": 1, "tier": "cheap", "provider": "anthropic",
+          "model": "TO_PIN_AT_FREEZE", "snapshot": "TO_PIN_AT_FREEZE",
+          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
+    "b": {"roles": ["reviewer"], "family": 2, "tier": "cheap", "provider": "openai",
+          "model": "TO_PIN_AT_FREEZE", "snapshot": "TO_PIN_AT_FREEZE",
+          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
+    "c": {"roles": ["reviewer"], "family": 3, "tier": "cheap", "provider": "google",
+          "model": "TO_PIN_AT_FREEZE", "snapshot": "TO_PIN_AT_FREEZE", "api_key_env": "GOOGLE_API_KEY",
+          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
+    "X": {"roles": ["generator", "reviewer"], "family": 4, "tier": "open", "provider": "openweight",
+          "model": "TO_PIN_AT_FREEZE", "weights_sha": "TO_PIN_AT_FREEZE", "precision": "TO_PIN_AT_FREEZE",
+          "serving_stack": "TO_PIN_AT_FREEZE", "host": "TO_PIN_AT_FREEZE", "num_ctx": "TO_PIN_AT_FREEZE",
+          "gpus": "TO_PIN_AT_FREEZE", "reload_threshold_s": 1.0,
+          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
+    "Y": {"roles": ["generator", "reviewer"], "family": 5, "tier": "open", "provider": "openweight",
+          "model": "TO_PIN_AT_FREEZE", "weights_sha": "TO_PIN_AT_FREEZE", "precision": "TO_PIN_AT_FREEZE",
+          "serving_stack": "TO_PIN_AT_FREEZE", "host": "TO_PIN_AT_FREEZE", "num_ctx": "TO_PIN_AT_FREEZE",
+          "gpus": "TO_PIN_AT_FREEZE", "reload_threshold_s": 1.0,
+          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
+    "Z": {"roles": ["generator", "reviewer"], "family": 6, "tier": "open", "provider": "openweight",
+          "model": "TO_PIN_AT_FREEZE", "weights_sha": "TO_PIN_AT_FREEZE", "precision": "TO_PIN_AT_FREEZE",
+          "serving_stack": "TO_PIN_AT_FREEZE", "host": "TO_PIN_AT_FREEZE", "num_ctx": "TO_PIN_AT_FREEZE",
+          "gpus": "TO_PIN_AT_FREEZE", "reload_threshold_s": 1.0,
+          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""}
+  },
+
+  // Q17: one pin rule per provider (regex the model id and the served snapshot must match).
+  // Provisional shapes; confirm against each provider's snapshot naming at freeze.
+  "pin_rules": {"anthropic": "(\\d{8}|\\d{4}-\\d{2}-\\d{2})$",
+                "openai": "\\d{4}-\\d{2}-\\d{2}$",
+                "google": "(-\\d{3}|\\d{4}-\\d{2}-\\d{2}|\\d{2}-\\d{4})$"},
+  "allowed_precisions": "TO_PIN_AT_FREEZE",
+
+  "sampling": {
+    "gen_temperature": 0.7,                           // [default §6] generation sampling
+    "gen_top_p": 1.0,                                 // [default §6]
+    "review_temperature": 0.7,                        // §6, fixed: three trials must be able to differ
+    "review_top_p": 1.0,                              // §6, fixed
+    "reasoning": "medium_or_equivalent"               // [default §6] same nominal setting for every model
+  },
+  "caps": {
+    "gen_output_tokens": 8000,                        // [default §6]
+    "review_input_tokens": 8000,                      // [default §6] bytes/4 proxy (Q11)
+    "review_output_tokens": 2000,                     // [default §6]
+    "packet_tokens": 3000,                            // [default §6, v1.0 §13] Experiment B packets
+    "context_lines": 50,                              // §11.1 enclosing method ±50 lines
+    "justification_words": 150,                       // §11.3 recorded, never invalidating (Q4)
+    "sibling_target_lines": 10                        // §9 flagged target, not enforced (Q15)
+  },
+  "timeouts_s": {
+    "review_timeout_s": 120,                          // [default §6]
+    "gen_timeout_s": 300                              // [default §6]
+  },
+  "max_attempts": 4,                                  // §6: one call + at most 3 retries, counted across resumes (Q1)
+  "workers": 4,
+  "design": {"trials": 3, "attempts_per_cell": 10, "reruns": 10, "gate_k": 2, "gate_n": 3},
+
+  "prices_usd_per_mtok": {
+    "A": {"input": "TO_PIN_AT_FREEZE", "output": "TO_PIN_AT_FREEZE"},
+    "B": {"input": "TO_PIN_AT_FREEZE", "output": "TO_PIN_AT_FREEZE"},
+    "C": {"input": "TO_PIN_AT_FREEZE", "output": "TO_PIN_AT_FREEZE"},
+    "a": {"input": "TO_PIN_AT_FREEZE", "output": "TO_PIN_AT_FREEZE"},
+    "b": {"input": "TO_PIN_AT_FREEZE", "output": "TO_PIN_AT_FREEZE"},
+    "c": {"input": "TO_PIN_AT_FREEZE", "output": "TO_PIN_AT_FREEZE"},
+    "X": {"input": "TO_PIN_AT_FREEZE", "output": "TO_PIN_AT_FREEZE"},   // hosted-provider price (primary)
+    "Y": {"input": "TO_PIN_AT_FREEZE", "output": "TO_PIN_AT_FREEZE"},
+    "Z": {"input": "TO_PIN_AT_FREEZE", "output": "TO_PIN_AT_FREEZE"}
+  },
+  "openweight_cost": {"primary": "hosted_price", "sensitivity": "gpu_seconds",
+                      "gpu_hour_usd": "TO_PIN_AT_FREEZE"},
+
+  "acceptance_target": 0.90,                          // §6 alpha: corrected acceptance target
+  "margins": {
+    "sesoi_unsafe": 0.10,                             // [default §6] smallest effect of interest on U
+    "ni_accept": 0.10,                                // [default §6] non-inferiority margin on A
+    "ni_unsafe": 0.10                                 // [default §6] non-inferiority margin on U (RQ2)
+  },
+  "alpha_one_sided": 0.025,                           // Q8: one-sided 0.025 = two-sided 0.05
+  "bootstrap": {"regret_draws": 2000, "confirm_draws": 10000},   // §12.4, §15.2
+  "regret": {"delta": 0.05, "stability_share": 0.80},           // §12.4
+
+  "experiment_b": {"n_cves": 12, "reviewers": ["a", "b", "c"],
+                   "packets": ["structure", "ordinary_tests", "contracts"]},
+
+  "extension": {
+    "enabled": true,                                  // author decision 8 Oct; must be explicit (Q21)
+    "paid_block_on_test": true,                       // [extension default §12.7]
+    "rq2o_mode": "promotion_rule",                    // [extension default §15.7] or "fixed_sequence"
+    "promotion": {"ni_unsafe": 0.05, "ni_accept": 0.05, "max_half_width": 0.10}   // §15.7 (i)-(iii)
+  },
+
+  "stage1": {"suite_scope": "full"},                  // [default §8, Q19] or "module_fallback"
+  "sibling": {"method": "author",                     // [default §9] author corrects by hand
+              "input_dir": "bank_inputs/siblings"},
+  "vul4j": {"runner": "container", "image": "TO_PIN_AT_FREEZE", "image_digest": "TO_PIN_AT_FREEZE",
+            "cli": "vul4j", "workdir": "/tmp/vul4j"},
+
+  "freeze": {"frozen": false, "config_sha256": null, "code_sha256": null}
+}
