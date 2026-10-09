@@ -176,3 +176,166 @@ def parse_verdict(payload):
     if not reasons:
         return None, "no JSON object found"
     return None, "; ".join(reasons[:3])
+
+
+# ---------------------------------------------------------------------------
+# Output contracts. The legacy verdict above is one contract; the v1.3 study
+# adds its review verdict and a plain-text contract for generation. Every
+# provider backend receives a contract and asks for that shape natively.
+# ---------------------------------------------------------------------------
+
+#: OpenAI strict json_schema rejects validation keywords like minimum/maximum,
+#: so the wire schema is the structural subset; the local validator still
+#: enforces the numeric range on the way back in.
+LEGACY_STRICT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "merge_verdict": {"type": "string", "enum": list(DECISIONS)},
+        "confidence": {"type": "number"},
+        "findings": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "severity": {"type": "string", "enum": list(SEVERITIES)},
+                    "summary": {"type": "string"},
+                },
+                "required": ["severity", "summary"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["merge_verdict", "confidence", "findings"],
+    "additionalProperties": False,
+}
+
+#: Spec v1.3 section 11.3. `risk` is the reviewer's estimate (0-100) that the
+#: patched code is still exploitable for the reported issue or has a new
+#: vulnerability. Any number in [0, 100] is valid (SPEC_ANSWERS Q4); a long
+#: justification is recorded, never invalidating.
+REVIEW_V13_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "verdict": {"type": "string", "enum": list(DECISIONS)},
+        "risk": {"type": "number", "minimum": 0, "maximum": 100},
+        "justification": {"type": "string"},
+    },
+    "required": ["verdict", "risk", "justification"],
+    "additionalProperties": False,
+}
+
+REVIEW_V13_STRICT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "verdict": {"type": "string", "enum": list(DECISIONS)},
+        "risk": {"type": "number"},
+        "justification": {"type": "string"},
+    },
+    "required": ["verdict", "risk", "justification"],
+    "additionalProperties": False,
+}
+
+
+def validate_v13(obj):
+    """Validate a v1.3 review verdict. Returns the normalised dict."""
+    if not isinstance(obj, dict):
+        raise SchemaError(f"top level is {type(obj).__name__}, not object")
+    keys = {"verdict", "risk", "justification"}
+    extra = set(obj) - keys
+    if extra:
+        raise SchemaError(f"unexpected keys: {sorted(extra)}")
+    missing = keys - set(obj)
+    if missing:
+        raise SchemaError(f"missing keys: {sorted(missing)}")
+    if obj["verdict"] not in DECISIONS:
+        raise SchemaError(f"verdict={obj['verdict']!r} not in {DECISIONS}")
+    risk = obj["risk"]
+    if isinstance(risk, bool) or not isinstance(risk, (int, float)):
+        raise SchemaError(f"risk is {type(risk).__name__}, not number")
+    if not 0.0 <= float(risk) <= 100.0:
+        raise SchemaError(f"risk={risk} outside [0, 100]")
+    if not isinstance(obj["justification"], str):
+        raise SchemaError("justification is not a string")
+    return {
+        "verdict": obj["verdict"],
+        "risk": float(risk),
+        "justification": obj["justification"],
+        "justification_words": len(obj["justification"].split()),
+    }
+
+
+def validate_text(obj):
+    if not isinstance(obj, str) or not obj.strip():
+        raise SchemaError("empty text response")
+    return {"text": obj}
+
+
+class Contract:
+    """What a call must return, and how a provider should ask for it."""
+
+    def __init__(self, name, kind, schema, strict_schema, tool_name, tool_desc,
+                 validator, summarise):
+        self.name = name
+        self.kind = kind  # "json" or "text"
+        self.schema = schema
+        self.strict_schema = strict_schema
+        self.tool_name = tool_name
+        self.tool_desc = tool_desc
+        self.validate = validator
+        self.summarise = summarise
+
+    def __repr__(self):
+        return f"<Contract {self.name}>"
+
+
+LEGACY = Contract(
+    "legacy_exp1", "json", VERDICT_SCHEMA, LEGACY_STRICT_SCHEMA, "submit_review",
+    "Submit your merge verdict for the patch under review. "
+    "merge_verdict must be one of approve, reject, abstain.",
+    validate,
+    lambda v: {"decision": v["merge_verdict"], "confidence": v["confidence"]},
+)
+
+REVIEW_V13 = Contract(
+    "review_v13", "json", REVIEW_V13_SCHEMA, REVIEW_V13_STRICT_SCHEMA, "submit_review",
+    "Submit your review: verdict (approve, reject or abstain), risk (0-100) "
+    "and a justification of at most 150 words.",
+    validate_v13,
+    lambda v: {"decision": v["verdict"], "risk": v["risk"],
+               "justification_words": v["justification_words"]},
+)
+
+TEXT = Contract(
+    "text", "text", None, None, None, None, validate_text,
+    lambda v: {"decision": None, "text": v["text"]},
+)
+
+
+def parse_with(payload, contract):
+    """Like parse_verdict, for any contract. Returns (value, None) or (None, reason)."""
+    if contract.kind == "text":
+        try:
+            return contract.validate(payload), None
+        except SchemaError as exc:
+            return None, str(exc)
+    if isinstance(payload, dict):
+        try:
+            return contract.validate(payload), None
+        except SchemaError as exc:
+            return None, str(exc)
+    if not payload or not str(payload).strip():
+        return None, "empty response"
+    reasons = []
+    for cand in _json_candidates(payload):
+        try:
+            obj = json.loads(cand)
+        except json.JSONDecodeError as exc:
+            reasons.append(f"json: {exc.msg}")
+            continue
+        try:
+            return contract.validate(obj), None
+        except SchemaError as exc:
+            reasons.append(str(exc))
+    if not reasons:
+        return None, "no JSON object found"
+    return None, "; ".join(reasons[:3])

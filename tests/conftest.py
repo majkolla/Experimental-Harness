@@ -92,3 +92,28 @@ def real_repo(tmp_path):
         else:
             shutil.copy(src, dst / item)
     return dst
+
+
+# --------------------------------------------------------------------------
+# No network and no paid calls, anywhere in the suite (hard rule). Provider
+# API keys are removed from the environment and sockets refuse to connect, so
+# a test that accidentally reaches a real backend fails instead of calling it.
+# --------------------------------------------------------------------------
+
+_PROVIDER_KEYS = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY")
+
+
+@pytest.fixture(autouse=True)
+def _no_network(monkeypatch):
+    import socket
+
+    for key in _PROVIDER_KEYS:
+        monkeypatch.delenv(key, raising=False)
+
+    def refuse(*args, **kwargs):
+        raise RuntimeError("network access is disabled in the test suite")
+
+    monkeypatch.setattr(socket.socket, "connect", refuse)
+    monkeypatch.setattr(socket.socket, "connect_ex", refuse)
+    monkeypatch.setattr(socket, "create_connection", refuse)
+    yield
