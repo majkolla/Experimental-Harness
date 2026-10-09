@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review-Harness — how the system works</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f7f7f5;
+    --surface: #fcfcfb;
+    --surface-2: #f0efec;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --ink-3: #86857e;
+    --line: #d9d8d2;
+    --line-2: #b9b8b0;
+    --a: #2a78d6;
+    --b: #eb6834;
+    --c: #1baf7a;
+    --good: #0ca30c;
+    --warn: #fab219;
+    --crit: #d03b3b;
+    --tint-a: #eaf2fc;
+    --tint-b: #fdeee7;
+    --tint-c: #e6f7f0;
+    --tint-crit: #fbeaea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg: #131312;
+      --surface: #1a1a19;
+      --surface-2: #232322;
+      --ink: #ffffff;
+      --ink-2: #c3c2b7;
+      --ink-3: #8e8d84;
+      --line: #383835;
+      --line-2: #4e4e4a;
+      --a: #3987e5;
+      --b: #d95926;
+      --c: #199e70;
+      --good: #0ca30c;
+      --warn: #fab219;
+      --crit: #d03b3b;
+      --tint-a: #16273c;
+      --tint-b: #33190f;
+      --tint-c: #102a20;
+      --tint-crit: #331616;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.62 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 56px 24px 96px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 44px; }
+  h1 { font-size: 30px; line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.02em; }
+  .sub { color: var(--ink-2); font-size: 17px; margin: 0; max-width: 66ch; }
+  h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--ink-3); margin: 60px 0 6px; font-weight: 650;
+  }
+  h3 { font-size: 21px; margin: 0 0 14px; letter-spacing: -0.01em; }
+  p { margin: 0 0 15px; max-width: 72ch; }
+  p.lead { font-size: 17px; }
+  section { margin-bottom: 8px; }
+  figure { margin: 26px 0 30px; }
+  figure svg { display: block; width: 100%; height: auto; }
+  figcaption {
+    font-size: 14px; color: var(--ink-2); margin-top: 12px;
+    padding-left: 14px; border-left: 2px solid var(--line-2); max-width: 74ch;
+  }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  code { font-size: 0.9em; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+  pre {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    padding: 16px 18px; overflow-x: auto; font-size: 13px; line-height: 1.55; margin: 20px 0;
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; margin: 20px 0; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); font-weight: 650; }
+  .note {
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid var(--a); border-radius: 6px;
+    padding: 14px 18px; margin: 22px 0; font-size: 15px;
+  }
+  .note.warn { border-left-color: var(--warn); }
+  .note.crit { border-left-color: var(--crit); }
+  .note strong { font-weight: 650; }
+  .note p:last-child { margin-bottom: 0; }
+  ul { margin: 0 0 16px; padding-left: 22px; max-width: 72ch; }
+  li { margin-bottom: 7px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 18px; font-size: 13.5px; color: var(--ink-2); margin: 4px 0 0; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .sw { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+  .kv { font-size: 14.5px; }
+  .kv td:first-child { font-family: ui-monospace, monospace; white-space: nowrap; color: var(--ink); }
+  .anno { list-style: none; padding-left: 0; font-size: 14.5px; }
+  .anno li { display: flex; gap: 12px; margin-bottom: 10px; }
+  .anno b {
+    flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--a); color: #fff; font-size: 12px; font-weight: 650;
+    display: grid; place-items: center; margin-top: 2px;
+  }
+  footer { margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 14px; }
+  .mono-sm { font-family: ui-monospace, monospace; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Review-Harness: how the system works</h1>
+  <p class="sub">An apparatus for measuring whether a panel of AI code reviewers actually
+  delivers the reliability a “two of three approvals to merge” gate implies — or only
+  the appearance of it. This walks the whole pipeline, from config to confidence interval.</p>
+</header>
+
+<!-- ─────────────────────────────  1  ───────────────────────────── -->
+<section>
+<h2>1 · The question</h2>
+<h3>Why any of this machinery exists</h3>
+
+<p class="lead">Put three AI reviewers on a defective patch. If each one wrongly approves
+40% of the time, and their mistakes are <em>independent</em>, all three approve
+0.4<sup>3</sup> ≈ 6% of the time. That is the arithmetic that makes redundancy feel safe.</p>
+
+<p>But reviewer mistakes are not independent. They may share a model family, a prompt,
+a repository context, a defect blind spot. When they do, the unanimous-failure rate is
+much higher than <code>p³</code> — and <strong>the marginal rates look identical either
+way</strong>. Each reviewer still fails 40% of the time. Nothing on a dashboard changes.
+The redundancy has quietly stopped existing.</p>
+
+<figure>
+<svg viewBox="0 0 860 230" role="img" aria-label="Independent reviewers give 6 percent unanimous failure; coupled reviewers give 18 percent from identical marginal rates">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,1 L9,5 L0,9" fill="none" stroke="var(--line-2)" stroke-width="1.6"/>
+    </marker>
+  </defs>
+
+  <!-- LEFT -->
+  <text x="16" y="20" font-size="13" font-weight="650" fill="var(--ink)">IF FAILURES WERE INDEPENDENT</text>
+  <g>
+    <rect x="16" y="38" width="52" height="34" rx="6" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.5"/>
+    <text x="42" y="60" text-anchor="middle" font-size="14" font-weight="650" fill="var(--ink)">A</text>
+    <rect x="16" y="82" width="52" height="34" rx="6" fill="var(--tint-b)" stroke="var(--b)" stroke-width="1.5"/>
+    <text x="42" y="104" text-anchor="middle" font-size="14" font-weight="650" fill="var(--ink)">B</text>
+    <rect x="16" y="126" width="52" height="34" rx="6" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.5"/>
+    <text x="42" y="148" text-anchor="middle" font-size="14" font-weight="650" fill="var(--ink)">C</text>
+    <text x="78" y="60" font-size="12.5" fill="var(--ink-2)">p = 0.40</text>
+    <text x="78" y="104" font-size="12.5" fill="var(--ink-2)">p = 0.40</text>
+    <text x="78" y="148" font-size="12.5" fill="var(--ink-2)">p = 0.40</text>
+    <path d="M148,99 L196,99" stroke="var(--line-2)" stroke-width="1.6" marker-end="url(#ar)"/>
+    <rect x="200" y="72" width="86" height="54" rx="8" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+    <text x="243" y="95" text-anchor="middle" font-size="12" fill="var(--ink-2)">gate</text>
+    <text x="243" y="112" text-anchor="middle" font-size="13" font-weight="650" fill="var(--ink)">all 3</text>
+    <path d="M290,99 L330,99" stroke="var(--line-2)" stroke-width="1.6" marker-end="url(#ar)"/>
+    <text x="338" y="94" font-size="24" font-weight="650" fill="var(--ink)">6.4%</text>
+    <text x="338" y="115" font-size="12.5" fill="var(--ink-3)">= 0.40³</text>
+    <text x="16" y="196" font-size="13" fill="var(--ink-2)">Three reviewers really are three reviewers.</text>
+    <text x="16" y="214" font-size="13" fill="var(--ink-2)">n_eff = 3.0</text>
+  </g>
+
+  <line x1="446" y1="10" x2="446" y2="220" stroke="var(--line)" stroke-width="1"/>
+
+  <!-- RIGHT -->
+  <text x="474" y="20" font-size="13" font-weight="650" fill="var(--ink)">IF THEY SHARE A CAUSE</text>
+  <g>
+    <rect x="462" y="32" width="250" height="28" rx="6" fill="var(--surface-2)" stroke="var(--line-2)" stroke-width="1.4" stroke-dasharray="4 3"/>
+    <text x="587" y="51" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">shared context · family · blind spot</text>
+    <path d="M500,60 L500,74" stroke="var(--line-2)" stroke-width="1.3"/>
+    <path d="M540,60 L540,74" stroke="var(--line-2)" stroke-width="1.3"/>
+    <path d="M580,60 L580,74" stroke="var(--line-2)" stroke-width="1.3"/>
+    <rect x="474" y="76" width="52" height="30" rx="6" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.5"/>
+    <text x="500" y="96" text-anchor="middle" font-size="13" font-weight="650" fill="var(--ink)">A</text>
+    <rect x="514" y="112" width="52" height="30" rx="6" fill="var(--tint-b)" stroke="var(--b)" stroke-width="1.5"/>
+    <text x="540" y="132" text-anchor="middle" font-size="13" font-weight="650" fill="var(--ink)">B</text>
+    <rect x="554" y="148" width="52" height="30" rx="6" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.5"/>
+    <text x="580" y="168" text-anchor="middle" font-size="13" font-weight="650" fill="var(--ink)">C</text>
+    <text x="614" y="96" font-size="12.5" fill="var(--ink-2)">p = 0.40</text>
+    <text x="614" y="132" font-size="12.5" fill="var(--ink-2)">p = 0.40</text>
+    <text x="614" y="168" font-size="12.5" fill="var(--ink-2)">p = 0.40</text>
+    <path d="M690,127 L724,127" stroke="var(--line-2)" stroke-width="1.6" marker-end="url(#ar)"/>
+    <text x="732" y="122" font-size="24" font-weight="650" fill="var(--crit)">18%</text>
+    <text x="732" y="143" font-size="12.5" fill="var(--ink-3)">observed, all 3</text>
+    <text x="474" y="196" font-size="13" fill="var(--ink-2)">Identical marginals. Nearly 3× the unanimous failures.</text>
+    <text x="474" y="214" font-size="13" fill="var(--ink-2)">n_eff = log 0.18 / log 0.40 = 1.9</text>
+  </g>
+</svg>
+<figcaption>The whole project lives in the gap between these two panels. Note what does
+<em>not</em> distinguish them: each reviewer’s own error rate. Measuring reviewers one at a
+time cannot detect the difference — only their <em>joint</em> behaviour can.</figcaption>
+</figure>
+
+<p>So the system is built to estimate three things that a per-reviewer benchmark cannot:
+how often a panel fails <em>together</em>, how much of that togetherness is more than
+chance, and whether it changes when you deliberately couple or decouple the reviewers.</p>
+</section>
+
+<!-- ─────────────────────────────  2  ───────────────────────────── -->
+<section>
+<h2>2 · The pipeline</h2>
+<h3>Five stages, one artefact</h3>
+
+<p>Everything flows one way. The only durable output is an append-only log of individual
+reviewer calls; every number in the paper is recomputed from it offline. That means an
+aggregation bug costs a re-run of the analysis, never a re-run of the models.</p>
+
+<figure>
+<svg viewBox="0 0 860 330" role="img" aria-label="Pipeline: config and task bank, design, dispatch, log, analysis, with the oracle bypassing the reviewer path">
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,1 L9,5 L0,9" fill="none" stroke="var(--line-2)" stroke-width="1.7"/>
+    </marker>
+    <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,1 L9,5 L0,9" fill="none" stroke="var(--c)" stroke-width="1.7"/>
+    </marker>
+  </defs>
+
+  <!-- oracle -->
+  <rect x="20" y="14" width="150" height="42" rx="7" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.5"/>
+  <text x="95" y="32" text-anchor="middle" font-size="12.5" font-weight="650" fill="var(--ink)">ORACLE</text>
+  <text x="95" y="48" text-anchor="middle" font-size="11" fill="var(--ink-2)">label · cwe · exploit</text>
+  <path d="M170,35 C 420,35 560,35 745,138" fill="none" stroke="var(--c)" stroke-width="1.6"
+        stroke-dasharray="5 4" marker-end="url(#ar3)"/>
+  <text x="400" y="26" font-size="11.5" fill="var(--c)" font-weight="650">ground truth reaches analysis only</text>
+  <path d="M95,58 L95,96" stroke="var(--crit)" stroke-width="1.6" stroke-dasharray="4 4"/>
+  <g stroke="var(--crit)" stroke-width="2.2">
+    <path d="M86,70 L104,84"/><path d="M104,70 L86,84"/>
+  </g>
+  <text x="112" y="82" font-size="11.5" fill="var(--crit)">never reaches a prompt</text>
+
+  <!-- stages -->
+  <g>
+    <rect x="20" y="110" width="146" height="58" rx="8" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+    <text x="32" y="132" font-size="11" fill="var(--ink-3)">1</text>
+    <text x="93" y="134" text-anchor="middle" font-size="13.5" font-weight="650" fill="var(--ink)">Config +</text>
+    <text x="93" y="151" text-anchor="middle" font-size="13.5" font-weight="650" fill="var(--ink)">task bank</text>
+
+    <path d="M170,139 L190,139" stroke="var(--line-2)" stroke-width="1.7" marker-end="url(#ar2)"/>
+
+    <rect x="194" y="110" width="146" height="58" rx="8" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+    <text x="206" y="132" font-size="11" fill="var(--ink-3)">2</text>
+    <text x="267" y="143" text-anchor="middle" font-size="13.5" font-weight="650" fill="var(--ink)">Design</text>
+
+    <path d="M344,139 L364,139" stroke="var(--line-2)" stroke-width="1.7" marker-end="url(#ar2)"/>
+
+    <rect x="368" y="110" width="146" height="58" rx="8" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+    <text x="380" y="132" font-size="11" fill="var(--ink-3)">3</text>
+    <text x="441" y="143" text-anchor="middle" font-size="13.5" font-weight="650" fill="var(--ink)">Dispatch</text>
+
+    <path d="M518,139 L538,139" stroke="var(--line-2)" stroke-width="1.7" marker-end="url(#ar2)"/>
+
+    <rect x="542" y="110" width="146" height="58" rx="8" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.8"/>
+    <text x="554" y="132" font-size="11" fill="var(--ink-3)">4</text>
+    <text x="615" y="134" text-anchor="middle" font-size="13.5" font-weight="650" fill="var(--ink)">Log</text>
+    <text x="615" y="151" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">append-only JSONL</text>
+
+    <path d="M692,139 L712,139" stroke="var(--line-2)" stroke-width="1.7" marker-end="url(#ar2)"/>
+
+    <rect x="716" y="110" width="124" height="58" rx="8" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+    <text x="728" y="132" font-size="11" fill="var(--ink-3)">5</text>
+    <text x="778" y="143" text-anchor="middle" font-size="13.5" font-weight="650" fill="var(--ink)">Analysis</text>
+  </g>
+
+  <!-- captions -->
+  <g font-size="11.5" fill="var(--ink-2)">
+    <text x="20" y="196">patches, manifests,</text><text x="20" y="211">6 context packets/task</text>
+    <text x="194" y="196">builds all 576 calls,</text><text x="194" y="211">asserts balance, shuffles</text>
+    <text x="368" y="196">bounded concurrency,</text><text x="368" y="211">retries, provenance</text>
+    <text x="542" y="196">one line per attempt,</text><text x="542" y="211">status ≠ verdict</text>
+    <text x="716" y="196">read-only input;</text><text x="716" y="211">gate applied here</text>
+  </g>
+
+  <rect x="20" y="240" width="820" height="76" rx="8" fill="var(--surface-2)" stroke="var(--line)" stroke-width="1"/>
+  <text x="36" y="262" font-size="12.5" font-weight="650" fill="var(--ink)">Two things the reviewer never sees</text>
+  <text x="36" y="282" font-size="12.5" fill="var(--ink-2)">the oracle — otherwise the experiment grades label leakage, not review</text>
+  <text x="36" y="302" font-size="12.5" fill="var(--ink-2)">the gate rule — a reviewer told “two of three merges this” is answering a different question</text>
+</svg>
+<figcaption>Stage 2 is a pure function of stage 1 — no I/O, no network — so the entire
+design can be inspected and cost-estimated with <code>--dry-run</code> before anything bills.</figcaption>
+</figure>
+
+<pre><code>python main.py    experiment.json --dry-run    # validate, check balance, print cost
+python main.py    experiment.json              # run or resume
+python analyze.py experiment.json              # tables + JSON
+python -m pytest  tests -q                     # 79 tests, no network</code></pre>
+</section>
+
+<!-- ─────────────────────────────  3  ───────────────────────────── -->
+<section>
+<h2>3 · The design</h2>
+<h3>What 576 calls are made of</h3>
+
+<p>A run is a fully crossed factorial. Two factors are manipulated, and two more exist to
+give the estimators something to work with.</p>
+
+<figure>
+<svg viewBox="0 0 860 250" role="img" aria-label="Four tasks times four panels times two regimes times six replicates times three seats equals 576 calls, from two independent clusters">
+  <g>
+    <!-- chips -->
+    <g>
+      <rect x="14" y="30" width="128" height="72" rx="8" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+      <text x="78" y="52" text-anchor="middle" font-size="26" font-weight="650" fill="var(--ink)">4</text>
+      <text x="78" y="70" text-anchor="middle" font-size="12" font-weight="650" fill="var(--ink-2)">TASKS</text>
+      <text x="78" y="88" text-anchor="middle" font-size="9.5" fill="var(--ink-3)">2 vulnerable + 2 secure</text>
+    </g>
+    <text x="152" y="72" font-size="17" fill="var(--ink-3)">×</text>
+    <g>
+      <rect x="170" y="30" width="128" height="72" rx="8" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.8"/>
+      <text x="234" y="52" text-anchor="middle" font-size="26" font-weight="650" fill="var(--ink)">4</text>
+      <text x="234" y="70" text-anchor="middle" font-size="12" font-weight="650" fill="var(--ink-2)">PANELS</text>
+      <text x="234" y="88" text-anchor="middle" font-size="10.5" fill="var(--ink-3)">AAA BBB CCC ABC</text>
+    </g>
+    <text x="308" y="72" font-size="17" fill="var(--ink-3)">×</text>
+    <g>
+      <rect x="326" y="30" width="128" height="72" rx="8" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.8"/>
+      <text x="390" y="52" text-anchor="middle" font-size="26" font-weight="650" fill="var(--ink)">2</text>
+      <text x="390" y="70" text-anchor="middle" font-size="12" font-weight="650" fill="var(--ink-2)">REGIMES</text>
+      <text x="390" y="88" text-anchor="middle" font-size="10.5" fill="var(--ink-3)">shared / diverse</text>
+    </g>
+    <text x="464" y="72" font-size="17" fill="var(--ink-3)">×</text>
+    <g>
+      <rect x="482" y="30" width="128" height="72" rx="8" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+      <text x="546" y="52" text-anchor="middle" font-size="26" font-weight="650" fill="var(--ink)">6</text>
+      <text x="546" y="70" text-anchor="middle" font-size="12" font-weight="650" fill="var(--ink-2)">REPLICATES</text>
+      <text x="546" y="88" text-anchor="middle" font-size="10.5" fill="var(--ink-3)">temperature &gt; 0</text>
+    </g>
+    <text x="620" y="72" font-size="17" fill="var(--ink-3)">×</text>
+    <g>
+      <rect x="638" y="30" width="128" height="72" rx="8" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+      <text x="702" y="52" text-anchor="middle" font-size="26" font-weight="650" fill="var(--ink)">3</text>
+      <text x="702" y="70" text-anchor="middle" font-size="12" font-weight="650" fill="var(--ink-2)">SEATS</text>
+      <text x="702" y="88" text-anchor="middle" font-size="10.5" fill="var(--ink-3)">n = 3</text>
+    </g>
+    <text x="774" y="72" font-size="17" fill="var(--ink-3)">=</text>
+    <text x="792" y="70" font-size="26" font-weight="650" fill="var(--ink)">576</text>
+    <text x="792" y="88" font-size="11" fill="var(--ink-3)">calls</text>
+  </g>
+
+  <text x="14" y="132" font-size="12" font-weight="650" fill="var(--ink-3)">MANIPULATED (blue) · SUPPORTING (grey)</text>
+
+  <rect x="14" y="148" width="832" height="86" rx="8" fill="var(--tint-crit)" stroke="var(--crit)" stroke-width="1.5"/>
+  <text x="34" y="174" font-size="14" font-weight="650" fill="var(--ink)">…but the inferential n is 2, not 576.</text>
+  <text x="34" y="196" font-size="12.5" fill="var(--ink-2)">Each vulnerable patch and its secure sibling belong to one CVE, and one CVE is one independent cluster. 576 calls</text>
+  <text x="34" y="214" font-size="12.5" fill="var(--ink-2)">from 2 clusters is 2 data points for inference. A standard error computed call-wise would be roughly 17× too small.</text>
+</svg>
+<figcaption>This is why every interval in the report comes from a bootstrap that resamples
+whole <em>clusters</em>. Scaling the experiment means adding tasks, not replicates: past the
+point where within-task rates stabilise, extra replicates have diminishing returns while
+extra tasks buy effective sample size.</figcaption>
+</figure>
+
+<h3>The two manipulated factors</h3>
+<table>
+  <tr><th>Factor</th><th>Levels</th><th>What it tests</th></tr>
+  <tr>
+    <td><strong>Panel composition</strong></td>
+    <td><code>AAA</code> <code>BBB</code> <code>CCC</code> <code>ABC</code></td>
+    <td>Does mixing model families buy independence? <code>ABC</code> is compared against the
+    equal-weight mixture of the three homogeneous panels, so a randomly drawn seat has the same
+    model distribution either way — the contrast varies coupling with capability roughly held fixed.</td>
+  </tr>
+  <tr>
+    <td><strong>Context regime</strong></td>
+    <td><code>shared</code> / <code>diverse</code></td>
+    <td>Does handing all three reviewers the <em>same</em> context packet couple them? This is the
+    factor a pipeline engineer can actually change, which is why the paper’s recommendation rests on it.</td>
+  </tr>
+</table>
+</section>
+
+<!-- ─────────────────────────────  4  ───────────────────────────── -->
+<section>
+<h2>4 · Seat vs channel</h2>
+<h3>The one distinction that everything else depends on</h3>
+
+<p>A <strong>seat</strong> is a position in the panel; it determines which context packet the
+call gets. A <strong>channel</strong> is a fixed model identity. These are deliberately
+different things, and conflating them was the single subtlest defect in the earlier code.</p>
+
+<div class="note crit">
+<p><strong>The bug.</strong> <code>for seat, ref in enumerate(seats)</code> welds model
+identity to seat position: in an <code>ABC</code> panel, model A sits in seat 0 forever. Any
+property of the seat — which packet it gets, where it lands in the prompt — is then permanently
+confounded with which model is sitting there.</p>
+<p><strong>The fix.</strong> Channels rotate across seats by replicate:
+<code>channel = (seat + replicate) mod n</code>. A channel keeps its model while visiting every
+seat equally often. The analysis then indexes reviewers by <em>channel</em>, because recombining
+by seat would pair model A’s outcome with model B’s.</p>
+</div>
+
+<figure>
+<svg viewBox="0 0 860 470" role="img" aria-label="Two six-by-three grids showing model rotation across seats and packet assignment in the shared and diverse arms">
+  <!-- headers -->
+  <text x="14" y="20" font-size="13" font-weight="650" fill="var(--ink)">SHARED ARM</text>
+  <text x="14" y="38" font-size="11.5" fill="var(--ink-2)">all three seats get one packet</text>
+  <text x="450" y="20" font-size="13" font-weight="650" fill="var(--ink)">DIVERSE ARM</text>
+  <text x="450" y="38" font-size="11.5" fill="var(--ink-2)">step P/n = 2 apart, so three distinct packets</text>
+
+  <g font-size="11" fill="var(--ink-3)" text-anchor="middle">
+    <text x="94" y="62">seat 0</text><text x="182" y="62">seat 1</text><text x="270" y="62">seat 2</text>
+    <text x="530" y="62">seat 0</text><text x="618" y="62">seat 1</text><text x="706" y="62">seat 2</text>
+  </g>
+
+  <!-- SHARED GRID: rows r0..r5 -->
+  <g>
+    <!-- r0 -->
+    <text x="42" y="90" font-size="11" fill="var(--ink-3)" text-anchor="end">r0</text>
+    <rect x="52" y="72" width="84" height="30" rx="5" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="72" y="92" font-size="13" font-weight="650" fill="var(--ink)">A</text><text x="96" y="92" font-size="11.5" fill="var(--ink-2)">pkt 0</text>
+    <rect x="140" y="72" width="84" height="30" rx="5" fill="var(--tint-b)" stroke="var(--b)" stroke-width="1.4"/>
+    <text x="160" y="92" font-size="13" font-weight="650" fill="var(--ink)">B</text><text x="184" y="92" font-size="11.5" fill="var(--ink-2)">pkt 0</text>
+    <rect x="228" y="72" width="84" height="30" rx="5" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.4"/>
+    <text x="248" y="92" font-size="13" font-weight="650" fill="var(--ink)">C</text><text x="272" y="92" font-size="11.5" fill="var(--ink-2)">pkt 0</text>
+    <!-- r1 -->
+    <text x="42" y="126" font-size="11" fill="var(--ink-3)" text-anchor="end">r1</text>
+    <rect x="52" y="108" width="84" height="30" rx="5" fill="var(--tint-b)" stroke="var(--b)" stroke-width="1.4"/>
+    <text x="72" y="128" font-size="13" font-weight="650" fill="var(--ink)">B</text><text x="96" y="128" font-size="11.5" fill="var(--ink-2)">pkt 1</text>
+    <rect x="140" y="108" width="84" height="30" rx="5" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.4"/>
+    <text x="160" y="128" font-size="13" font-weight="650" fill="var(--ink)">C</text><text x="184" y="128" font-size="11.5" fill="var(--ink-2)">pkt 1</text>
+    <rect x="228" y="108" width="84" height="30" rx="5" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="248" y="128" font-size="13" font-weight="650" fill="var(--ink)">A</text><text x="272" y="128" font-size="11.5" fill="var(--ink-2)">pkt 1</text>
+    <!-- r2 -->
+    <text x="42" y="162" font-size="11" fill="var(--ink-3)" text-anchor="end">r2</text>
+    <rect x="52" y="144" width="84" height="30" rx="5" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.4"/>
+    <text x="72" y="164" font-size="13" font-weight="650" fill="var(--ink)">C</text><text x="96" y="164" font-size="11.5" fill="var(--ink-2)">pkt 2</text>
+    <rect x="140" y="144" width="84" height="30" rx="5" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="160" y="164" font-size="13" font-weight="650" fill="var(--ink)">A</text><text x="184" y="164" font-size="11.5" fill="var(--ink-2)">pkt 2</text>
+    <rect x="228" y="144" width="84" height="30" rx="5" fill="var(--tint-b)" stroke="var(--b)" stroke-width="1.4"/>
+    <text x="248" y="164" font-size="13" font-weight="650" fill="var(--ink)">B</text><text x="272" y="164" font-size="11.5" fill="var(--ink-2)">pkt 2</text>
+    <!-- r3 -->
+    <text x="42" y="198" font-size="11" fill="var(--ink-3)" text-anchor="end">r3</text>
+    <rect x="52" y="180" width="84" height="30" rx="5" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="72" y="200" font-size="13" font-weight="650" fill="var(--ink)">A</text><text x="96" y="200" font-size="11.5" fill="var(--ink-2)">pkt 3</text>
+    <rect x="140" y="180" width="84" height="30" rx="5" fill="var(--tint-b)" stroke="var(--b)" stroke-width="1.4"/>
+    <text x="160" y="200" font-size="13" font-weight="650" fill="var(--ink)">B</text><text x="184" y="200" font-size="11.5" fill="var(--ink-2)">pkt 3</text>
+    <rect x="228" y="180" width="84" height="30" rx="5" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.4"/>
+    <text x="248" y="200" font-size="13" font-weight="650" fill="var(--ink)">C</text><text x="272" y="200" font-size="11.5" fill="var(--ink-2)">pkt 3</text>
+    <!-- r4 -->
+    <text x="42" y="234" font-size="11" fill="var(--ink-3)" text-anchor="end">r4</text>
+    <rect x="52" y="216" width="84" height="30" rx="5" fill="var(--tint-b)" stroke="var(--b)" stroke-width="1.4"/>
+    <text x="72" y="236" font-size="13" font-weight="650" fill="var(--ink)">B</text><text x="96" y="236" font-size="11.5" fill="var(--ink-2)">pkt 4</text>
+    <rect x="140" y="216" width="84" height="30" rx="5" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.4"/>
+    <text x="160" y="236" font-size="13" font-weight="650" fill="var(--ink)">C</text><text x="184" y="236" font-size="11.5" fill="var(--ink-2)">pkt 4</text>
+    <rect x="228" y="216" width="84" height="30" rx="5" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="248" y="236" font-size="13" font-weight="650" fill="var(--ink)">A</text><text x="272" y="236" font-size="11.5" fill="var(--ink-2)">pkt 4</text>
+    <!-- r5 -->
+    <text x="42" y="270" font-size="11" fill="var(--ink-3)" text-anchor="end">r5</text>
+    <rect x="52" y="252" width="84" height="30" rx="5" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.4"/>
+    <text x="72" y="272" font-size="13" font-weight="650" fill="var(--ink)">C</text><text x="96" y="272" font-size="11.5" fill="var(--ink-2)">pkt 5</text>
+    <rect x="140" y="252" width="84" height="30" rx="5" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="160" y="272" font-size="13" font-weight="650" fill="var(--ink)">A</text><text x="184" y="272" font-size="11.5" fill="var(--ink-2)">pkt 5</text>
+    <rect x="228" y="252" width="84" height="30" rx="5" fill="var(--tint-b)" stroke="var(--b)" stroke-width="1.4"/>
+    <text x="248" y="272" font-size="13" font-weight="650" fill="var(--ink)">B</text><text x="272" y="272" font-size="11.5" fill="var(--ink-2)">pkt 5</text>
+  </g>
+
+  <!-- DIVERSE GRID -->
+  <g>
+    <text x="478" y="90" font-size="11" fill="var(--ink-3)" text-anchor="end">r0</text>
+    <rect x="488" y="72" width="84" height="30" rx="5" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="508" y="92" font-size="13" font-weight="650" fill="var(--ink)">A</text><text x="532" y="92" font-size="11.5" fill="var(--ink-2)">pkt 0</text>
+    <rect x="576" y="72" width="84" height="30" rx="5" fill="var(--tint-b)" stroke="var(--b)" stroke-width="1.4"/>
+    <text x="596" y="92" font-size="13" font-weight="650" fill="var(--ink)">B</text><text x="620" y="92" font-size="11.5" fill="var(--ink-2)">pkt 2</text>
+    <rect x="664" y="72" width="84" height="30" rx="5" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.4"/>
+    <text x="684" y="92" font-size="13" font-weight="650" fill="var(--ink)">C</text><text x="708" y="92" font-size="11.5" fill="var(--ink-2)">pkt 4</text>
+
+    <text x="478" y="126" font-size="11" fill="var(--ink-3)" text-anchor="end">r1</text>
+    <rect x="488" y="108" width="84" height="30" rx="5" fill="var(--tint-b)" stroke="var(--b)" stroke-width="1.4"/>
+    <text x="508" y="128" font-size="13" font-weight="650" fill="var(--ink)">B</text><text x="532" y="128" font-size="11.5" fill="var(--ink-2)">pkt 1</text>
+    <rect x="576" y="108" width="84" height="30" rx="5" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.4"/>
+    <text x="596" y="128" font-size="13" font-weight="650" fill="var(--ink)">C</text><text x="620" y="128" font-size="11.5" fill="var(--ink-2)">pkt 3</text>
+    <rect x="664" y="108" width="84" height="30" rx="5" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="684" y="128" font-size="13" font-weight="650" fill="var(--ink)">A</text><text x="708" y="128" font-size="11.5" fill="var(--ink-2)">pkt 5</text>
+
+    <text x="478" y="162" font-size="11" fill="var(--ink-3)" text-anchor="end">r2</text>
+    <rect x="488" y="144" width="84" height="30" rx="5" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.4"/>
+    <text x="508" y="164" font-size="13" font-weight="650" fill="var(--ink)">C</text><text x="532" y="164" font-size="11.5" fill="var(--ink-2)">pkt 2</text>
+    <rect x="576" y="144" width="84" height="30" rx="5" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="596" y="164" font-size="13" font-weight="650" fill="var(--ink)">A</text><text x="620" y="164" font-size="11.5" fill="var(--ink-2)">pkt 4</text>
+    <rect x="664" y="144" width="84" height="30" rx="5" fill="var(--tint-b)" stroke="var(--b)" stroke-width="1.4"/>
+    <text x="684" y="164" font-size="13" font-weight="650" fill="var(--ink)">B</text><text x="708" y="164" font-size="11.5" fill="var(--ink-2)">pkt 0</text>
+
+    <text x="478" y="198" font-size="11" fill="var(--ink-3)" text-anchor="end">r3</text>
+    <rect x="488" y="180" width="84" height="30" rx="5" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="508" y="200" font-size="13" font-weight="650" fill="var(--ink)">A</text><text x="532" y="200" font-size="11.5" fill="var(--ink-2)">pkt 3</text>
+    <rect x="576" y="180" width="84" height="30" rx="5" fill="var(--tint-b)" stroke="var(--b)" stroke-width="1.4"/>
+    <text x="596" y="200" font-size="13" font-weight="650" fill="var(--ink)">B</text><text x="620" y="200" font-size="11.5" fill="var(--ink-2)">pkt 5</text>
+    <rect x="664" y="180" width="84" height="30" rx="5" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.4"/>
+    <text x="684" y="200" font-size="13" font-weight="650" fill="var(--ink)">C</text><text x="708" y="200" font-size="11.5" fill="var(--ink-2)">pkt 1</text>
+
+    <text x="478" y="234" font-size="11" fill="var(--ink-3)" text-anchor="end">r4</text>
+    <rect x="488" y="216" width="84" height="30" rx="5" fill="var(--tint-b)" stroke="var(--b)" stroke-width="1.4"/>
+    <text x="508" y="236" font-size="13" font-weight="650" fill="var(--ink)">B</text><text x="532" y="236" font-size="11.5" fill="var(--ink-2)">pkt 4</text>
+    <rect x="576" y="216" width="84" height="30" rx="5" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.4"/>
+    <text x="596" y="236" font-size="13" font-weight="650" fill="var(--ink)">C</text><text x="620" y="236" font-size="11.5" fill="var(--ink-2)">pkt 0</text>
+    <rect x="664" y="216" width="84" height="30" rx="5" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="684" y="236" font-size="13" font-weight="650" fill="var(--ink)">A</text><text x="708" y="236" font-size="11.5" fill="var(--ink-2)">pkt 2</text>
+
+    <text x="478" y="270" font-size="11" fill="var(--ink-3)" text-anchor="end">r5</text>
+    <rect x="488" y="252" width="84" height="30" rx="5" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.4"/>
+    <text x="508" y="272" font-size="13" font-weight="650" fill="var(--ink)">C</text><text x="532" y="272" font-size="11.5" fill="var(--ink-2)">pkt 5</text>
+    <rect x="576" y="252" width="84" height="30" rx="5" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="596" y="272" font-size="13" font-weight="650" fill="var(--ink)">A</text><text x="620" y="272" font-size="11.5" fill="var(--ink-2)">pkt 1</text>
+    <rect x="664" y="252" width="84" height="30" rx="5" fill="var(--tint-b)" stroke="var(--b)" stroke-width="1.4"/>
+    <text x="684" y="272" font-size="13" font-weight="650" fill="var(--ink)">B</text><text x="708" y="272" font-size="11.5" fill="var(--ink-2)">pkt 3</text>
+  </g>
+
+  <!-- tallies -->
+  <rect x="14" y="300" width="832" height="150" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/>
+  <text x="34" y="325" font-size="12.5" font-weight="650" fill="var(--ink)">READ DOWN A COLUMN AND ACROSS A ROW — THE BALANCE IS EXACT, NOT APPROXIMATE</text>
+
+  <text x="34" y="352" font-size="12.5" fill="var(--ink-2)"><tspan font-weight="650" fill="var(--ink)">B3</tspan>  every seat column reads A,B,C,A,B,C — each model occupies each seat exactly twice, in both arms.</text>
+  <text x="34" y="374" font-size="12.5" fill="var(--ink-2)"><tspan font-weight="650" fill="var(--ink)">B2</tspan>  every seat column contains all six packets exactly once — and so does every model, tracked by channel.</text>
+  <text x="34" y="396" font-size="12.5" fill="var(--ink-2)"><tspan font-weight="650" fill="var(--ink)">B1</tspan>  each packet is used 3 times per cell — <tspan font-weight="650" fill="var(--ink)">identical in both arms</tspan>. Same bank, same frequency, same seats.</text>
+  <text x="34" y="426" font-size="12.5" fill="var(--ink-2)">So the arms differ in exactly one respect: whether a replicate’s three packets coincide. That is the difference between</text>
+  <text x="34" y="442" font-size="12.5" fill="var(--ink-2)">a causal claim about <tspan font-style="italic">coupling</tspan> and a causal claim about <tspan font-style="italic">context quality</tspan>.</text>
+</svg>
+<figcaption>All three balance properties are asserted on the constructed schedule by
+<code>design.assert_balanced()</code>, which <em>raises</em> before any model call rather than
+warning. Getting there requires <code>replicates</code> to be a multiple of both the packet
+count and n — hence 6, 12, 18, 24.</figcaption>
+</figure>
+
+<div class="note warn">
+<p><strong>A trap worth knowing about.</strong> My first B3 check tested “each model appears
+in seats with uniform counts”. The welded design <em>passes</em> that — each model appears in
+exactly one seat, and one number is trivially uniform. The check has to require presence in
+<em>all n</em> seats. There is now a regression test that builds the welded design and asserts
+it fails.</p>
+</div>
+</section>
+
+<!-- ─────────────────────────────  5  ───────────────────────────── -->
+<section>
+<h2>5 · One call</h2>
+<h3>What happens between a prompt and a log line</h3>
+
+<p>A reviewer is a stateless map: (prompt, patch, context) → vote. It has no memory, no
+tools, no view of its peers, and no writable workspace. Everything interesting is in how
+the <em>outcome</em> is classified.</p>
+
+<figure>
+<svg viewBox="0 0 860 418" role="img" aria-label="Call lifecycle: prompt to provider to one of six statuses, with retry policy">
+  <defs>
+    <marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,1 L9,5 L0,9" fill="none" stroke="var(--line-2)" stroke-width="1.6"/>
+    </marker>
+  </defs>
+
+  <rect x="14" y="14" width="300" height="54" rx="8" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+  <text x="30" y="36" font-size="12.5" font-weight="650" fill="var(--ink)">build_prompt(template, patch, packet)</text>
+  <text x="30" y="55" font-size="11.5" fill="var(--ink-2)">three parameters — no channel for the oracle</text>
+
+  <path d="M164,68 L164,92" stroke="var(--line-2)" stroke-width="1.6" marker-end="url(#ar4)"/>
+
+  <rect x="14" y="96" width="300" height="54" rx="8" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.6"/>
+  <text x="30" y="118" font-size="12.5" font-weight="650" fill="var(--ink)">provider call</text>
+  <text x="30" y="137" font-size="11" fill="var(--ink-2)">native structured output · timeout · retries off</text>
+
+  <text x="336" y="112" font-size="11.5" fill="var(--ink-2)">Anthropic tool_use · OpenAI json_schema</text>
+  <text x="336" y="130" font-size="11.5" fill="var(--ink-2)">Ollama format=schema · balanced-brace fallback</text>
+
+  <path d="M164,150 L164,176" stroke="var(--line-2)" stroke-width="1.6" marker-end="url(#ar4)"/>
+  <text x="14" y="196" font-size="12" font-weight="650" fill="var(--ink-3)">EXACTLY ONE STATUS LANDS ON THE RECORD</text>
+
+  <!-- status chips -->
+  <g>
+    <rect x="14" y="208" width="128" height="58" rx="7" fill="var(--surface)" stroke="var(--good)" stroke-width="1.8"/>
+    <text x="28" y="230" font-size="12.5" font-weight="650" fill="var(--ink)">ok</text>
+    <text x="28" y="248" font-size="11" fill="var(--ink-2)">schema-valid</text>
+    <text x="28" y="261" font-size="11" fill="var(--ink-2)">verdict</text>
+
+    <rect x="152" y="208" width="128" height="58" rx="7" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+    <text x="166" y="230" font-size="12.5" font-weight="650" fill="var(--ink)">schema_invalid</text>
+    <text x="166" y="248" font-size="11" fill="var(--ink-2)">answered, didn’t</text>
+    <text x="166" y="261" font-size="11" fill="var(--ink-2)">validate</text>
+
+    <rect x="290" y="208" width="128" height="58" rx="7" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+    <text x="304" y="230" font-size="12.5" font-weight="650" fill="var(--ink)">truncated</text>
+    <text x="304" y="248" font-size="11" fill="var(--ink-2)">hit the token</text>
+    <text x="304" y="261" font-size="11" fill="var(--ink-2)">limit</text>
+
+    <rect x="428" y="208" width="128" height="58" rx="7" fill="var(--surface)" stroke="var(--warn)" stroke-width="1.8"/>
+    <text x="442" y="230" font-size="12.5" font-weight="650" fill="var(--ink)">timeout</text>
+    <text x="442" y="248" font-size="11" fill="var(--ink-2)">retryable</text>
+
+    <rect x="566" y="208" width="128" height="58" rx="7" fill="var(--surface)" stroke="var(--warn)" stroke-width="1.8"/>
+    <text x="580" y="230" font-size="12.5" font-weight="650" fill="var(--ink)">transport_error</text>
+    <text x="580" y="248" font-size="11" fill="var(--ink-2)">429 · 5xx · conn</text>
+    <text x="580" y="261" font-size="11" fill="var(--ink-2)">retryable</text>
+
+    <rect x="704" y="208" width="142" height="58" rx="7" fill="var(--surface)" stroke="var(--crit)" stroke-width="1.8"/>
+    <text x="718" y="230" font-size="12.5" font-weight="650" fill="var(--ink)">request_error</text>
+    <text x="718" y="248" font-size="11" fill="var(--ink-2)">4xx · our fault ·</text>
+    <text x="718" y="261" font-size="11" fill="var(--ink-2)">never retried</text>
+  </g>
+
+  <path d="M492,266 C 492,296 380,296 380,296" fill="none" stroke="var(--warn)" stroke-width="1.6"/>
+  <path d="M630,266 C 630,296 396,296 396,296" fill="none" stroke="var(--warn)" stroke-width="1.6"/>
+  <rect x="196" y="284" width="184" height="26" rx="6" fill="var(--surface-2)" stroke="var(--warn)" stroke-width="1.4"/>
+  <text x="288" y="301" text-anchor="middle" font-size="11.5" fill="var(--ink)">backoff, attempt+1, max 4</text>
+
+  <rect x="14" y="330" width="832" height="78" rx="8" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.5"/>
+  <text x="34" y="354" font-size="13" font-weight="650" fill="var(--ink)">One log line per attempt — not per call.</text>
+  <text x="34" y="376" font-size="12.5" fill="var(--ink-2)">Retries are <tspan font-style="italic">operational</tspan> and carry an <tspan font-family="ui-monospace, monospace">attempt</tspan> index. They are never scientific replicates.</text>
+  <text x="34" y="396" font-size="12.5" fill="var(--ink-2)">Keeping every attempt is what makes the missingness structure auditable afterwards.</text>
+</svg>
+<figcaption>Why six statuses instead of “ok / error”: a timeout is not an abstention, a
+truncated response is not a rejection, and a schema violation is not a verdict. Collapsing
+them loses information that is <em>not missing at random</em> — verbose models truncate more
+often, so the collapse rate would correlate with the model-composition factor under study.</figcaption>
+</figure>
+
+<div class="note crit">
+<p><strong>The worst bug in the old code was in resume, not in dispatch.</strong>
+<code>done_ids</code> collected every <code>call_id</code> in the log regardless of status, so a
+single transient 429 retired that call permanently. Its panel then came out incomplete and
+was dropped from the analysis. Because error rates differ by provider and by response length,
+that made <em>missingness correlated with the composition factor</em> — the one confound the
+design cannot absorb. Only <code>status == "ok"</code> now counts as done.</p>
+</div>
+</section>
+
+<!-- ─────────────────────────────  6  ───────────────────────────── -->
+<section>
+<h2>6 · Execution order</h2>
+<h3>Why the obvious speed-up is the wrong one</h3>
+
+<p>The natural implementation runs a panel’s three reviewers in a thread pool. It is fast,
+it reads cleanly, and it silently destroys the experiment.</p>
+
+<figure>
+<svg viewBox="0 0 860 316" role="img" aria-label="Comparison of per-panel parallel dispatch versus globally interleaved dispatch">
+  <text x="14" y="20" font-size="13" font-weight="650" fill="var(--crit)">✗  PER-PANEL THREAD POOL</text>
+  <line x1="14" y1="112" x2="846" y2="112" stroke="var(--line)" stroke-width="1"/>
+  <text x="820" y="128" font-size="11" fill="var(--ink-3)" text-anchor="end">time</text>
+  <g>
+    <rect x="60" y="34" width="118" height="22" rx="4" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="70" y="50" font-size="11" fill="var(--ink)">P·r0·seat 0</text>
+    <rect x="60" y="60" width="118" height="22" rx="4" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="70" y="76" font-size="11" fill="var(--ink)">P·r0·seat 1</text>
+    <rect x="60" y="86" width="118" height="22" rx="4" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="70" y="102" font-size="11" fill="var(--ink)">P·r0·seat 2</text>
+    <text x="192" y="58" font-size="12" fill="var(--crit)" font-weight="650">same instant →</text>
+    <text x="192" y="76" font-size="11.5" fill="var(--ink-2)">same cache state, same load, same service-side condition</text>
+    <text x="192" y="94" font-size="11.5" fill="var(--ink-2)">= panel-level coupling manufactured by construction</text>
+  </g>
+
+  <text x="14" y="164" font-size="13" font-weight="650" fill="var(--good)">✓  GLOBAL SHUFFLE + ADMISSION RULE</text>
+  <line x1="14" y1="258" x2="846" y2="258" stroke="var(--line)" stroke-width="1"/>
+  <text x="820" y="274" font-size="11" fill="var(--ink-3)" text-anchor="end">time</text>
+  <g>
+    <rect x="34" y="178" width="104" height="22" rx="4" fill="var(--surface-2)" stroke="var(--line-2)" stroke-width="1.4"/>
+    <text x="42" y="194" font-size="10.5" fill="var(--ink)">Q·r4·s2</text>
+    <rect x="150" y="204" width="104" height="22" rx="4" fill="var(--surface-2)" stroke="var(--line-2)" stroke-width="1.4"/>
+    <text x="158" y="220" font-size="10.5" fill="var(--ink)">R·r1·s0</text>
+    <rect x="212" y="178" width="104" height="22" rx="4" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="220" y="194" font-size="10.5" fill="var(--ink)">P·r0·s1</text>
+    <rect x="300" y="230" width="104" height="22" rx="4" fill="var(--surface-2)" stroke="var(--line-2)" stroke-width="1.4"/>
+    <text x="308" y="246" font-size="10.5" fill="var(--ink)">S·r3·s2</text>
+    <rect x="390" y="204" width="104" height="22" rx="4" fill="var(--surface-2)" stroke="var(--line-2)" stroke-width="1.4"/>
+    <text x="398" y="220" font-size="10.5" fill="var(--ink)">T·r2·s0</text>
+    <rect x="470" y="178" width="104" height="22" rx="4" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="478" y="194" font-size="10.5" fill="var(--ink)">P·r0·s0</text>
+    <rect x="560" y="230" width="104" height="22" rx="4" fill="var(--surface-2)" stroke="var(--line-2)" stroke-width="1.4"/>
+    <text x="568" y="246" font-size="10.5" fill="var(--ink)">U·r5·s1</text>
+    <rect x="660" y="204" width="104" height="22" rx="4" fill="var(--surface-2)" stroke="var(--line-2)" stroke-width="1.4"/>
+    <text x="668" y="220" font-size="10.5" fill="var(--ink)">V·r1·s2</text>
+    <rect x="734" y="178" width="104" height="22" rx="4" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.4"/>
+    <text x="742" y="194" font-size="10.5" fill="var(--ink)">P·r0·s2</text>
+  </g>
+  <text x="14" y="288" font-size="12" fill="var(--ink-2)">Workers pull from the shuffled schedule, but a call is <tspan font-weight="650" fill="var(--ink)">not admitted while its panel has another call in flight</tspan>.</text>
+  <text x="14" y="306" font-size="12" fill="var(--ink-2)">Panel P’s three seats (blue) end up far apart in time, with unrelated calls between them.</text>
+</svg>
+<figcaption>A panel is a grouping in the design, not an event in time. The admission rule is
+a local decision — no reshuffling, no rejection sampling on a global criterion — so it buys
+throughput without imposing hidden structure on the order.</figcaption>
+</figure>
+</section>
+
+<!-- ─────────────────────────────  7  ───────────────────────────── -->
+<section>
+<h2>7 · From log to outcomes</h2>
+<h3>Turning 576 records into trials</h3>
+
+<figure>
+<svg viewBox="0 0 860 336" role="img" aria-label="Log records are deduplicated, grouped by panel replicate, and become channel-indexed trials or counted as incomplete">
+  <defs>
+    <marker id="ar5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,1 L9,5 L0,9" fill="none" stroke="var(--line-2)" stroke-width="1.6"/>
+    </marker>
+  </defs>
+
+  <rect x="14" y="20" width="180" height="70" rx="8" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+  <text x="28" y="42" font-size="12.5" font-weight="650" fill="var(--ink)">log records</text>
+  <text x="28" y="60" font-size="11" fill="var(--ink-2)">one per attempt,</text>
+  <text x="28" y="75" font-size="11" fill="var(--ink-2)">any status</text>
+
+  <path d="M198,55 L222,55" stroke="var(--line-2)" stroke-width="1.6" marker-end="url(#ar5)"/>
+
+  <rect x="226" y="20" width="196" height="70" rx="8" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+  <text x="240" y="42" font-size="12.5" font-weight="650" fill="var(--ink)">last ok per call_id</text>
+  <text x="240" y="60" font-size="11" fill="var(--ink-2)">a successful retry</text>
+  <text x="240" y="75" font-size="11" fill="var(--ink-2)">supersedes its failures</text>
+
+  <path d="M426,55 L450,55" stroke="var(--line-2)" stroke-width="1.6" marker-end="url(#ar5)"/>
+
+  <rect x="454" y="20" width="230" height="70" rx="8" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+  <text x="468" y="42" font-size="12.5" font-weight="650" fill="var(--ink)">group by</text>
+  <text x="468" y="62" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--ink-2)">(task, panel, regime, rep)</text>
+  <text x="468" y="80" font-size="11" fill="var(--ink-2)">one group = one panel sitting</text>
+
+  <path d="M569,94 L569,118" stroke="var(--line-2)" stroke-width="1.6" marker-end="url(#ar5)"/>
+  <rect x="464" y="122" width="210" height="34" rx="17" fill="var(--surface-2)" stroke="var(--line-2)" stroke-width="1.4"/>
+  <text x="569" y="144" text-anchor="middle" font-size="12" fill="var(--ink)">all 3 channels present?</text>
+
+  <path d="M464,139 L360,139 L360,180" fill="none" stroke="var(--good)" stroke-width="1.6" marker-end="url(#ar5)"/>
+  <text x="372" y="134" font-size="11.5" font-weight="650" fill="var(--good)">yes</text>
+  <path d="M674,139 L768,139 L768,180" fill="none" stroke="var(--crit)" stroke-width="1.6" marker-end="url(#ar5)"/>
+  <text x="700" y="134" font-size="11.5" font-weight="650" fill="var(--crit)">no</text>
+
+  <rect x="212" y="184" width="296" height="66" rx="8" fill="var(--surface)" stroke="var(--good)" stroke-width="1.6"/>
+  <text x="228" y="206" font-size="12.5" font-weight="650" fill="var(--ink)">trial = (Y_A, Y_B, Y_C)</text>
+  <text x="228" y="226" font-size="11.5" fill="var(--ink-2)">indexed by <tspan font-family="ui-monospace, monospace">channel</tspan>, not seat</text>
+  <text x="228" y="242" font-size="11.5" fill="var(--ink-2)">Y = 1 if approved <tspan font-weight="650" fill="var(--ink)">and</tspan> patch still vulnerable</text>
+
+  <rect x="612" y="184" width="234" height="66" rx="8" fill="var(--tint-crit)" stroke="var(--crit)" stroke-width="1.6"/>
+  <text x="628" y="206" font-size="12.5" font-weight="650" fill="var(--ink)">incomplete++</text>
+  <text x="628" y="226" font-size="11.5" fill="var(--ink-2)">dropped and counted —</text>
+  <text x="628" y="242" font-size="11.5" fill="var(--ink-2)"><tspan font-weight="650" fill="var(--ink)">never</tspan> imputed as a rejection</text>
+
+  <rect x="14" y="270" width="832" height="56" rx="8" fill="var(--surface-2)" stroke="var(--line)" stroke-width="1"/>
+  <text x="34" y="292" font-size="12.5" fill="var(--ink-2)">Coding a missing vote as “did not approve” would bias gate failure <tspan font-style="italic">downward</tspan> exactly on the</text>
+  <text x="34" y="310" font-size="12.5" fill="var(--ink-2)">hardest runs — the ones where calls are slowest and likeliest to fail.</text>
+</svg>
+<figcaption>Abstention is folded into “did not approve” for the safety gate, with the other
+coding (<code>--abstain-as-approval</code>) reported as a sensitivity rather than chosen. The
+degenerate always-abstain reviewer is caught by the separate availability count.</figcaption>
+</figure>
+
+<h3>Which patches count</h3>
+<p>The confirmatory population is the top-left cell of the oracle 2×2: patches that are
+<strong>still vulnerable and functionally passing</strong> — near misses that a reviewer could
+plausibly wave through.</p>
+
+<table>
+  <tr><th></th><th>Functionally passing</th><th>Functionally failing</th></tr>
+  <tr><td><strong>Still vulnerable</strong></td>
+      <td style="background:var(--tint-a)"><strong>the experiment</strong> — Y = 1 on approval</td>
+      <td>excluded: too easy, confounded</td></tr>
+  <tr><td><strong>Secure</strong></td>
+      <td>secure sibling: approval is <em>correct</em> here</td>
+      <td>repair failure (secondary)</td></tr>
+</table>
+
+<p>Secure siblings are mandatory. Without them a reviewer that rejects everything scores
+as a perfect security control. <code>indeterminate</code> labels are excluded from confirmatory
+analysis: forcing a binary label puts label noise into Y, and label noise on the <em>task</em> is
+shared by all three reviewers — manufacturing exactly the correlated failure under study.</p>
+</section>
+
+<!-- ─────────────────────────────  8  ───────────────────────────── -->
+<section>
+<h2>8 · The null</h2>
+<h3>The single most important idea in the system</h3>
+
+<p>To say a panel fails together “more than chance”, you need a number for chance. The
+tempting one — multiply the individual rates — is wrong in two separate ways. So the
+baseline is <em>built by design</em> instead: take the same reviewers on the same task, but
+pair their outcomes across <strong>different replicates</strong>, so they were never in a panel
+together.</p>
+
+<figure>
+<svg viewBox="0 0 860 430" role="img" aria-label="A grid of six replicates by three channels; a row is the observed panel, a diagonal set of three cells is a recombined pseudo-panel">
+  <text x="14" y="20" font-size="12" font-weight="650" fill="var(--ink-3)">ONE CELL: TASK × PANEL × REGIME · SIX REPLICATES × THREE CHANNELS</text>
+
+  <g font-size="12" font-weight="650" fill="var(--ink)" text-anchor="middle">
+    <text x="128" y="52">A</text><text x="216" y="52">B</text><text x="304" y="52">C</text>
+  </g>
+  <g>
+    <rect x="98" y="34" width="12" height="12" rx="3" fill="var(--a)"/>
+    <rect x="186" y="34" width="12" height="12" rx="3" fill="var(--b)"/>
+    <rect x="274" y="34" width="12" height="12" rx="3" fill="var(--c)"/>
+  </g>
+
+  <!-- grid cells: values -->
+  <g font-size="15" text-anchor="middle" fill="var(--ink)">
+    <!-- r0 -->
+    <text x="60" y="82" font-size="11" fill="var(--ink-3)">r0</text>
+    <rect x="96" y="66" width="64" height="26" rx="5" fill="var(--tint-b)" stroke="var(--line)" stroke-width="1"/><text x="128" y="85">1</text>
+    <rect x="184" y="66" width="64" height="26" rx="5" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/><text x="216" y="85">0</text>
+    <rect x="272" y="66" width="64" height="26" rx="5" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/><text x="304" y="85">1</text>
+    <!-- r1 -->
+    <text x="60" y="118" font-size="11" fill="var(--ink-3)">r1</text>
+    <rect x="96" y="102" width="64" height="26" rx="5" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/><text x="128" y="121">0</text>
+    <rect x="184" y="102" width="64" height="26" rx="5" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/><text x="216" y="121">0</text>
+    <rect x="272" y="102" width="64" height="26" rx="5" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/><text x="304" y="121">0</text>
+    <!-- r2 (observed highlight) -->
+    <text x="60" y="154" font-size="11" fill="var(--ink-3)">r2</text>
+    <rect x="96" y="138" width="64" height="26" rx="5" fill="var(--tint-a)" stroke="var(--line)" stroke-width="1"/><text x="128" y="157">1</text>
+    <rect x="184" y="138" width="64" height="26" rx="5" fill="var(--tint-a)" stroke="var(--line)" stroke-width="1"/><text x="216" y="157">1</text>
+    <rect x="272" y="138" width="64" height="26" rx="5" fill="var(--tint-a)" stroke="var(--line)" stroke-width="1"/><text x="304" y="157">0</text>
+    <rect x="90" y="132" width="252" height="38" rx="7" fill="none" stroke="var(--a)" stroke-width="2.4"/>
+    <!-- r3 -->
+    <text x="60" y="190" font-size="11" fill="var(--ink-3)">r3</text>
+    <rect x="96" y="174" width="64" height="26" rx="5" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/><text x="128" y="193">1</text>
+    <rect x="184" y="174" width="64" height="26" rx="5" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/><text x="216" y="193">0</text>
+    <rect x="272" y="174" width="64" height="26" rx="5" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/><text x="304" y="193">1</text>
+    <!-- r4 -->
+    <text x="60" y="226" font-size="11" fill="var(--ink-3)">r4</text>
+    <rect x="96" y="210" width="64" height="26" rx="5" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/><text x="128" y="229">0</text>
+    <rect x="184" y="210" width="64" height="26" rx="5" fill="var(--tint-b)" stroke="var(--line)" stroke-width="1"/><text x="216" y="229">1</text>
+    <rect x="272" y="210" width="64" height="26" rx="5" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/><text x="304" y="229">0</text>
+    <!-- r5 -->
+    <text x="60" y="262" font-size="11" fill="var(--ink-3)">r5</text>
+    <rect x="96" y="246" width="64" height="26" rx="5" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/><text x="128" y="265">1</text>
+    <rect x="184" y="246" width="64" height="26" rx="5" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/><text x="216" y="265">1</text>
+    <rect x="272" y="246" width="64" height="26" rx="5" fill="var(--tint-b)" stroke="var(--line)" stroke-width="1"/><text x="304" y="265">1</text>
+  </g>
+
+  <!-- recombination: three cells, one per column, all from different rows.
+       The connector is routed through the column gaps so nothing overlays a value. -->
+  <g fill="none" stroke="var(--b)" stroke-width="2.2" stroke-dasharray="5 4">
+    <rect x="94" y="64" width="68" height="30" rx="7"/>
+    <rect x="182" y="208" width="68" height="30" rx="7"/>
+    <rect x="270" y="244" width="68" height="30" rx="7"/>
+    <path d="M162,79 L172,79 L172,223 L182,223"/>
+    <path d="M250,223 L260,223 L260,259 L270,259"/>
+  </g>
+
+  <!-- right column: definitions -->
+  <rect x="376" y="60" width="470" height="96" rx="8" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.8"/>
+  <text x="396" y="84" font-size="13" font-weight="650" fill="var(--ink)">OBSERVED — one row (blue box)</text>
+  <text x="396" y="106" font-size="12.5" fill="var(--ink-2)">Three outcomes from one real panel sitting.</text>
+  <text x="396" y="126" font-size="12.5" font-family="ui-monospace, monospace" fill="var(--ink-2)">q_jk = P(both approve) · t = P(all approve)</text>
+  <text x="396" y="146" font-size="12.5" font-family="ui-monospace, monospace" fill="var(--ink-2)">R_obs = P(≥ k approve)</text>
+
+  <rect x="376" y="170" width="470" height="116" rx="8" fill="var(--tint-b)" stroke="var(--b)" stroke-width="1.8"/>
+  <text x="396" y="194" font-size="13" font-weight="650" fill="var(--ink)">RECOMBINED — one cell per column, all different rows</text>
+  <text x="396" y="216" font-size="12.5" fill="var(--ink-2)">A pseudo-panel that never met. Averaged over every such triple.</text>
+  <text x="396" y="236" font-size="12.5" font-family="ui-monospace, monospace" fill="var(--ink-2)">q_recomb · t_recomb · R_recomb</text>
+  <text x="396" y="258" font-size="12.5" fill="var(--ink-2)">Same task, same patch, same models, same prompt, same treatment.</text>
+  <text x="396" y="276" font-size="12.5" font-weight="650" fill="var(--ink)">Differs in exactly one thing: whether they sat together.</text>
+
+  <rect x="14" y="300" width="832" height="118" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/>
+  <text x="34" y="326" font-size="13" font-weight="650" fill="var(--ink)">The two dependence estimands</text>
+  <text x="34" y="352" font-size="14" font-family="ui-monospace, monospace" fill="var(--ink)">D = R_obs − R_recomb</text>
+  <text x="300" y="352" font-size="12.5" fill="var(--ink-2)">gate dependence penalty, in percentage points — <tspan font-weight="650" fill="var(--ink)">primary</tspan></text>
+  <text x="34" y="378" font-size="14" font-family="ui-monospace, monospace" fill="var(--ink)">A = R_obs ÷ R_recomb</text>
+  <text x="300" y="378" font-size="12.5" fill="var(--ink-2)">gate amplification factor — secondary, interval required, never called a correlation</text>
+  <text x="34" y="404" font-size="12.5" fill="var(--ink-2)">Reporting only A overstates rare-event coupling; reporting only D hides the collapse of the redundancy argument.</text>
+</svg>
+<figcaption>The estimator is closed-form via Möbius inversion over set partitions of the
+channel index set — O(2ⁿ·Bell(n)·R) instead of the O(Rⁿ) enumeration — and is tested against
+brute force. That speed is what makes a 2000-draw bootstrap over six statistics a
+two-second operation, and therefore what makes the robustness analysis something that
+actually gets explored.</figcaption>
+</figure>
+
+<h3>The two ways the tempting baseline fails</h3>
+
+<div class="note">
+<p><strong>Failure 1 — the plug-in leaks.</strong> Estimating the null as
+<code>p̂ⱼ·p̂ₖ</code> from the same R replicates gives</p>
+<pre style="margin:10px 0"><code>E[p̂ⱼ p̂ₖ] = (1/R)·q_same + (1 − 1/R)·pⱼpₖ</code></pre>
+<p>— a convex combination that puts weight <code>1/R</code> on the very same-panel joint whose
+excess you are trying to measure. With p = 0.4, true q = 0.25 and R = 5, the true pairwise
+penalty is 9.0 pp and the plug-in reports 7.2 pp: understated by <em>exactly</em> one fifth.
+Recombination puts zero weight on the contaminated term. There is a test for this.</p>
+</div>
+
+<div class="note crit">
+<p><strong>Failure 2 — pooling tasks invents dependence out of nothing.</strong> Take two
+strata of tasks where the reviewers are <em>conditionally independent by construction</em> —
+easy tasks p = 0.05, hard tasks p = 0.70, zero coupling anywhere. Pool them and compute
+against pooled marginals:</p>
+<table class="kv" style="margin:12px 0 8px">
+  <tr><td>pooled p</td><td>0.375</td><td>pooled q</td><td>0.24625</td></tr>
+  <tr><td>Δ = q − p²</td><td><strong>+10.6 pp</strong></td><td>C = q ÷ p²</td><td><strong>1.75</strong></td></tr>
+  <tr><td>task-conditioned R<sub>2/3</sub></td><td>0.3956</td><td>naive pooled reference</td><td>0.3164</td></tr>
+  <tr><td colspan="4">apparent gate penalty <strong>+7.9 pp</strong> — every digit of it an artefact of difficulty</td></tr>
+</table>
+<p>This is why recombination is valid <em>only within a task</em>, and why the pooled reference
+appears in the report as a labelled cautionary row rather than an estimate. Much of the
+intuitive “LLMs make correlated errors” story is this number.</p>
+</div>
+</section>
+
+<!-- ─────────────────────────────  9  ───────────────────────────── -->
+<section>
+<h2>9 · Why the majority gate lies</h2>
+<h3>The result that decides what you monitor</h3>
+
+<p>For three reviewers there is an exact identity — no approximation, no model:</p>
+
+<pre><code>R(2/3) = q₁₂ + q₁₃ + q₂₃ − 2t          and therefore     D(2/3) = 3·dq − 2·dt</code></pre>
+
+<p>The coefficient on the triple is <strong>negative</strong>. So the sign of the
+majority-gate effect turns on whether <code>dt/dq</code> exceeds <strong>3/2</strong> — which is
+<em>not determined</em> by the marginals and the pairwise rates. Two kinds of common cause,
+both unambiguously coupling, sit on opposite sides of it.</p>
+
+<figure>
+<svg viewBox="0 0 860 442" role="img" aria-label="A number line for dt over dq with threshold 1.5, and a grouped bar chart of the majority-gate and unanimity-gate penalties for diffuse and concentrated common causes">
+  <!-- number line -->
+  <text x="14" y="22" font-size="12" font-weight="650" fill="var(--ink-3)">dt / dq  —  THE THIRD-ORDER STATISTIC THAT DECIDES THE SIGN</text>
+  <line x1="60" y1="70" x2="800" y2="70" stroke="var(--line-2)" stroke-width="2"/>
+  <g font-size="11" fill="var(--ink-3)" text-anchor="middle">
+    <text x="60" y="92">0</text><text x="356" y="92">1.0</text><text x="504" y="92">1.5</text><text x="800" y="92">2.5</text>
+  </g>
+  <line x1="504" y1="54" x2="504" y2="86" stroke="var(--crit)" stroke-width="2.4"/>
+  <text x="512" y="48" font-size="12" font-weight="650" fill="var(--crit)">3/2 — the crossover</text>
+
+  <circle cx="350" cy="70" r="7" fill="var(--a)"/>
+  <text x="350" y="122" text-anchor="middle" font-size="12.5" font-weight="650" fill="var(--ink)">DIFFUSE</text>
+  <text x="350" y="140" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">dt/dq = 0.98</text>
+  <text x="350" y="156" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">many mildly misleading packets</text>
+
+  <circle cx="551" cy="70" r="7" fill="var(--b)"/>
+  <text x="640" y="122" text-anchor="middle" font-size="12.5" font-weight="650" fill="var(--ink)">CONCENTRATED</text>
+  <text x="640" y="140" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">dt/dq = 1.66</text>
+  <text x="640" y="156" text-anchor="middle" font-size="11.5" fill="var(--ink-2)">one catastrophic packet fools the whole panel</text>
+
+  <!-- grouped bars -->
+  <text x="14" y="196" font-size="12" font-weight="650" fill="var(--ink-3)">DEPENDENCE PENALTY BY GATE RULE (PERCENTAGE POINTS)</text>
+  <g class="legend-svg">
+    <rect x="600" y="186" width="11" height="11" rx="3" fill="var(--a)"/>
+    <text x="618" y="196" font-size="12" fill="var(--ink-2)">D(2/3) majority</text>
+    <rect x="726" y="186" width="11" height="11" rx="3" fill="var(--b)"/>
+    <text x="744" y="196" font-size="12" fill="var(--ink-2)">D(3/3) unanimity</text>
+  </g>
+
+  <!-- axis: zero at x=240; scale 1 pp = 5.2 units; range -3 .. +11 pp -->
+  <line x1="240" y1="216" x2="240" y2="392" stroke="var(--line-2)" stroke-width="1.6"/>
+  <text x="240" y="408" text-anchor="middle" font-size="11" fill="var(--ink-3)">0</text>
+  <g stroke="var(--line)" stroke-width="1" stroke-dasharray="3 3">
+    <line x1="500" y1="216" x2="500" y2="392"/><line x1="760" y1="216" x2="760" y2="392"/>
+  </g>
+  <g font-size="11" fill="var(--ink-3)" text-anchor="middle">
+    <text x="500" y="408">+5 pp</text><text x="760" y="408">+10 pp</text>
+  </g>
+
+  <!-- DIFFUSE group -->
+  <text x="20" y="248" font-size="12.5" font-weight="650" fill="var(--ink)">diffuse</text>
+  <path d="M240,232 h34 a4,4 0 0 1 4,4 v14 a4,4 0 0 1 -4,4 h-34 z" fill="var(--a)"/>
+  <text x="288" y="248" font-size="12" fill="var(--ink)">+0.8</text>
+  <path d="M240,258 h33 a4,4 0 0 1 4,4 v14 a4,4 0 0 1 -4,4 h-33 z" fill="var(--b)"/>
+  <text x="288" y="274" font-size="12" fill="var(--ink)">+0.7</text>
+  <text x="20" y="266" font-size="11.5" fill="var(--ink-2)">both gates</text>
+  <text x="20" y="281" font-size="11.5" fill="var(--ink-2)">detect it</text>
+
+  <!-- CONCENTRATED group -->
+  <text x="20" y="330" font-size="12.5" font-weight="650" fill="var(--ink)">concentrated</text>
+  <path d="M240,314 h-98 a4,4 0 0 0 -4,4 v14 a4,4 0 0 0 4,4 h98 z" fill="var(--a)"/>
+  <text x="191" y="330" font-size="12" text-anchor="middle" font-weight="650" fill="#ffffff">−1.9</text>
+  <path d="M240,340 h502 a4,4 0 0 1 4,4 v14 a4,4 0 0 1 -4,4 h-502 z" fill="var(--b)"/>
+  <text x="756" y="356" font-size="12" font-weight="650" fill="var(--ink)">+9.7</text>
+  <text x="20" y="348" font-size="11.5" fill="var(--ink-2)">majority gate says</text>
+  <text x="20" y="363" font-size="11.5" fill="var(--ink-2)">“improving”</text>
+  <text x="20" y="378" font-size="11.5" fill="var(--crit)" font-weight="650">while it is 9.7 pp worse</text>
+  <text x="20" y="430" font-size="11.5" fill="var(--ink-3)">Compare <tspan font-style="italic">signs within a row</tspan>. The two rows are different processes, so bar lengths are not comparable across rows.</text>
+</svg>
+<figcaption>Both rows are genuinely coupled and both have a positive pairwise gap. Only the
+third-order statistic separates them — and a team watching the 2-of-3 rate alone reads the
+worse of the two as redundancy working. Measured values from the test suite:
+concentrated dq = +0.059, dt = +0.097; diffuse dq = +0.0073, dt = +0.0071.</figcaption>
+</figure>
+
+<div class="note">
+<p><strong>Consequences the report enforces.</strong> <code>R_unan</code> and the pairwise gap
+<code>dq</code> are the primary detectors. <code>R_2/3</code> is reported because it is what a
+deployment experiences, not because it is sensitive — and the report prints a
+<code>shape</code> column (concentrated / diffuse) beside it so its sign is never read without
+its third-order statistic. <strong>A k-of-n gate cannot be monitored safely without a
+third-order statistic.</strong></p>
+</div>
+
+<p>There is a two-century-old special case of this. Under total coupling
+(<code>q = t = p</code>), <code>dt/dq = 1 + p</code>, which crosses 3/2 exactly at
+<strong>p = 1/2</strong> — Condorcet’s condition. A majority gate only improves on a single
+reviewer when the individual false-approval rate is under one half, and coupling erodes
+precisely that advantage.</p>
+
+<h3>And a harder limit: you cannot skip the triple</h3>
+<p>Marginals plus <em>all</em> pairwise joints leave the gate risk genuinely undetermined:</p>
+
+<table>
+  <tr><th>Law</th><th>Mass</th><th>each p</th><th>each q</th><th>R<sub>2/3</sub></th></tr>
+  <tr><td>A</td><td>¼ each on 111, 100, 010, 001</td><td>0.5</td><td>0.25</td><td><strong>0.25</strong></td></tr>
+  <tr><td>B</td><td>¼ each on 110, 101, 011, 000</td><td>0.5</td><td>0.25</td><td><strong>0.75</strong></td></tr>
+</table>
+
+<p>Identical marginals, identical pairwise joints, exact pairwise independence in both — and
+a threefold difference in how often the gate lets a vulnerable patch through. So
+“estimate each reviewer’s rate, estimate pairwise correlation, compute gate risk” is not
+approximate, it is <strong>unidentified</strong>. That is why full n-tuples are recorded and the
+8-cell pattern table is a headline figure, and why the report carries sharp Fréchet bounds on
+the triple.</p>
+</section>
+
+<!-- ─────────────────────────────  10  ───────────────────────────── -->
+<section>
+<h2>10 · Aggregation and uncertainty</h2>
+<h3>Two stages, then resample clusters</h3>
+
+<figure>
+<svg viewBox="0 0 860 300" role="img" aria-label="Replicates average within task, tasks average with equal weight, then clusters are resampled to build a confidence interval">
+  <defs>
+    <marker id="ar6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,1 L9,5 L0,9" fill="none" stroke="var(--line-2)" stroke-width="1.6"/>
+    </marker>
+  </defs>
+
+  <text x="14" y="20" font-size="12" font-weight="650" fill="var(--ink-3)">STAGE 1 — WITHIN TASK</text>
+  <g>
+    <rect x="14" y="32" width="150" height="80" rx="8" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+    <text x="28" y="54" font-size="12" fill="var(--ink-2)">6 replicates ×</text>
+    <text x="28" y="72" font-size="12" fill="var(--ink-2)">3 channels</text>
+    <text x="28" y="96" font-size="12" font-weight="650" fill="var(--ink)">→ cell statistics</text>
+    <path d="M168,72 L192,72" stroke="var(--line-2)" stroke-width="1.6" marker-end="url(#ar6)"/>
+    <rect x="196" y="32" width="150" height="80" rx="8" fill="var(--tint-a)" stroke="var(--a)" stroke-width="1.6"/>
+    <text x="210" y="54" font-size="12" fill="var(--ink-2)">one value per</text>
+    <text x="210" y="72" font-size="12" fill="var(--ink-2)">task × panel × regime</text>
+    <text x="210" y="96" font-size="12" font-family="ui-monospace, monospace" fill="var(--ink)">R_obs, D, dq, dt …</text>
+  </g>
+
+  <text x="380" y="20" font-size="12" font-weight="650" fill="var(--ink-3)">STAGE 2 — ACROSS TASKS</text>
+  <path d="M350,72 L374,72" stroke="var(--line-2)" stroke-width="1.6" marker-end="url(#ar6)"/>
+  <rect x="378" y="32" width="200" height="80" rx="8" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+  <text x="392" y="54" font-size="12" fill="var(--ink-2)">equal weight per task</text>
+  <text x="392" y="74" font-size="11.5" fill="var(--ink-2)">not per completed panel —</text>
+  <text x="392" y="90" font-size="11.5" fill="var(--ink-2)">pooling would re-import the</text>
+  <text x="392" y="104" font-size="11.5" fill="var(--ink-2)">missingness and difficulty bias</text>
+
+  <path d="M582,72 L606,72" stroke="var(--line-2)" stroke-width="1.6" marker-end="url(#ar6)"/>
+  <rect x="610" y="32" width="236" height="80" rx="8" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>
+  <text x="624" y="54" font-size="12" font-weight="650" fill="var(--ink)">contrast</text>
+  <text x="624" y="74" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--ink-2)">shared − diverse</text>
+  <text x="624" y="92" font-size="11.5" font-family="ui-monospace, monospace" fill="var(--ink-2)">ABC − mean(AAA,BBB,CCC)</text>
+
+  <text x="14" y="152" font-size="12" font-weight="650" fill="var(--ink-3)">UNCERTAINTY — CLUSTER BOOTSTRAP</text>
+  <rect x="14" y="164" width="832" height="120" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="1"/>
+  <g>
+    <rect x="36" y="186" width="58" height="34" rx="6" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.5"/>
+    <text x="65" y="207" text-anchor="middle" font-size="11.5" fill="var(--ink)">CVE 1</text>
+    <rect x="102" y="186" width="58" height="34" rx="6" fill="var(--tint-c)" stroke="var(--c)" stroke-width="1.5"/>
+    <text x="131" y="207" text-anchor="middle" font-size="11.5" fill="var(--ink)">CVE 2</text>
+    <text x="172" y="207" font-size="11.5" fill="var(--ink-3)">… whole clusters, siblings intact</text>
+    <path d="M370,203 L394,203" stroke="var(--line-2)" stroke-width="1.6" marker-end="url(#ar6)"/>
+    <text x="402" y="199" font-size="12" fill="var(--ink-2)">resample with replacement,</text>
+    <text x="402" y="215" font-size="12" fill="var(--ink-2)">recompute the contrast, 2000 times</text>
+    <path d="M642,203 L666,203" stroke="var(--line-2)" stroke-width="1.6" marker-end="url(#ar6)"/>
+    <text x="676" y="199" font-size="12" font-weight="650" fill="var(--ink)">95% interval</text>
+    <text x="676" y="215" font-size="12" fill="var(--ink-2)">+ one-sided p</text>
+  </g>
+  <text x="36" y="248" font-size="12" fill="var(--ink-2)">A sibling patch is not an independent draw, and a task is not an independent draw from its own replicates. Resampling calls</text>
+  <text x="36" y="266" font-size="12" fill="var(--ink-2)">would understate every standard error by roughly the square root of the calls-per-cluster ratio.</text>
+</svg>
+<figcaption>Power has to be <em>simulated</em> through this exact path, not computed in closed
+form: a Bernoulli power calculation assumes independent calls and would claim adequate power
+at a fraction of the true requirement.</figcaption>
+</figure>
+
+<h3>The three confirmatory hypotheses</h3>
+<table>
+  <tr><th></th><th>Contrast</th><th>Claim</th></tr>
+  <tr><td><strong>H1</strong></td><td><code>R_obs</code> shared − diverse</td>
+      <td>Sharing one context packet raises 2-of-3 false approval. The practitioner-facing effect.</td></tr>
+  <tr><td><strong>H2</strong></td><td><code>R_obs</code> ABC − mixture</td>
+      <td>A family-diverse panel does better than the equal-weight homogeneous mixture.</td></tr>
+  <tr><td><strong>H3</strong></td><td><code>D</code> shared − diverse</td>
+      <td>The <em>dependence component</em> rises, not just the level. This is the distinctive claim.</td></tr>
+</table>
+
+<p>H1 and H3 are separate on purpose. H1 alone cannot distinguish “the intervention
+decorrelated the panel” from “the intervention made each reviewer individually better” —
+swapping three weak models (p = 0.45) for three strong diverse ones (p = 0.20) moves
+R<sub>2/3</sub> from 0.425 to 0.104 under <em>exact independence throughout</em>, a 32 pp
+improvement with zero change in dependence. Marginal capability and dependence are reported
+as separate columns. Holm corrects across exactly these three; everything CWE- or
+model-specific is labelled exploratory.</p>
+</section>
+
+<!-- ─────────────────────────────  11  ───────────────────────────── -->
+<section>
+<h2>11 · Reading the output</h2>
+<h3>An annotated line from the report</h3>
+
+<pre><code>panel/regime     tasks   p_bar   R_obs   R_rec       D    R_un    D_un      dq      dt        shape
+ABC/shared           2   0.417   0.250   0.358  -0.108   0.167  +0.121  +0.044  +0.121 concentrated
+                     ①      ②       ③       ④       ⑤       ⑥       ⑦       ⑧       ⑨            ⑩</code></pre>
+
+<ul class="anno">
+  <li><b>1</b><span><strong>tasks</strong> — how many independent tasks this row averages. Two is a pilot, not a result.</span></li>
+  <li><b>2</b><span><strong>p_bar</strong> — mean individual false-approval rate. Near 0 or 1 the gate saturates and no dependence effect of any size is detectable; the report warns outside [0.05, 0.95].</span></li>
+  <li><b>3</b><span><strong>R_obs</strong> — observed 2-of-3 gate failure. What a deployment actually experiences.</span></li>
+  <li><b>4</b><span><strong>R_rec</strong> — the recombination null: the same reviewers on the same task, never in a panel together.</span></li>
+  <li><b>5</b><span><strong>D = R_obs − R_rec</strong> — the gate dependence penalty. Negative here, which looks like good news and is not.</span></li>
+  <li><b>6</b><span><strong>R_un</strong> — unanimous false approval. The rate that the “p³” intuition gets most wrong.</span></li>
+  <li><b>7</b><span><strong>D_un</strong> — the same penalty on the unanimity gate. <strong>+0.121 while D is −0.108</strong>: the panel is much worse, and the majority gate is reporting an improvement.</span></li>
+  <li><b>8</b><span><strong>dq</strong> — mean pairwise excess. Positive, so coupling is unambiguously present.</span></li>
+  <li><b>9</b><span><strong>dt</strong> — triple excess. The third-order statistic.</span></li>
+  <li><b>10</b><span><strong>shape</strong> — <code>dt/dq &gt; 3/2</code>, so <em>concentrated</em>: one shared state is fooling the whole panel at once. This is the column that stops ⑤ from being misread.</span></li>
+</ul>
+
+<p>Above the table sits a per-model missingness tally — non-uniform loss across model
+families is a confound on the composition factor, not noise. Below it sit the bootstrap
+contrasts, the naive pooled reference (labelled cautionary), and the secure-sibling approval
+rates, where approval is the <em>correct</em> behaviour.</p>
+</section>
+
+<!-- ─────────────────────────────  12  ───────────────────────────── -->
+<section>
+<h2>12 · Where the guardrails live</h2>
+<h3>79 tests, and what each group is for</h3>
+
+<p>An estimator bug here is silent and fatal: the pipeline runs, the tables format, and the
+conclusions are wrong. So every claim the analysis makes is checked against a process whose
+dependence structure is known by construction — using <em>exact multisets</em> rather than
+sampling, so tolerances are ~1e-3 rather than guessed.</p>
+
+<table>
+  <tr><th>File</th><th>Pins</th></tr>
+  <tr><td><code>test_config.py</code></td><td>Every misconfiguration that would invalidate the design raises: temperature 0, bad divisibility, floating model aliases, missing secure siblings, unequal packet budgets.</td></tr>
+  <tr><td><code>test_design.py</code></td><td>B1/B2/B3 hold; the shared arm coincides and the diverse arm does not; channels are model-stable while seats are not; <strong>the seat-welded design fails</strong>.</td></tr>
+  <tr><td><code>test_oracle_isolation.py</code></td><td>No oracle string appears in any prompt the schedule builds; <code>build_prompt</code> has no parameter one could arrive through; the gate rule is absent from the prompt.</td></tr>
+  <tr><td><code>test_schema.py</code></td><td>The old greedy regex is shown to fail on prose-with-braces and the new parser to succeed; the four failure statuses stay distinct; only two are retryable.</td></tr>
+  <tr><td><code>test_runner.py</code></td><td>The resume bug specifically: a timed-out call is <em>not</em> done. Plus truncated-log survival, retry supersession, and the admission rule.</td></tr>
+  <tr><td><code>test_estimators.py</code></td><td>The gate identity on 200 random laws; closed-form recombination vs O(Rⁿ) brute force; Fréchet bounds valid and attained; the 0.25-vs-0.75 non-identifiability construction; n_eff’s refusals.</td></tr>
+  <tr><td><code>test_dgp.py</code></td><td>Planted independence → D ≈ 0. Planted shared cause → recovered. Heterogeneity alone → the +7.9 pp artefact. Concentrated vs diffuse → opposite signs. Condorcet crossover at p = ½. Plug-in leak = exactly 1/R. End-to-end recovery of a planted contrast, plus a negative control that must look null.</td></tr>
+  <tr><td><code>test_pipeline.py</code></td><td>The whole path against a synthetic provider — no network, no budget. Resume is idempotent; a poisoned log is repaired, not accepted.</td></tr>
+</table>
+</section>
+
+<!-- ─────────────────────────────  13  ───────────────────────────── -->
+<section>
+<h2>13 · What the apparatus cannot yet tell you</h2>
+
+<ul>
+  <li><strong>The task bank is placeholder content.</strong> Four structurally correct tasks with
+  illustrative patches. This is the single item that decides whether the paper has a result:
+  it needs near-miss patches — vulnerable <em>and</em> functionally passing — with independently
+  adjudicated labels and an <code>indeterminate</code> class.</li>
+  <li><strong>Two clusters is not an experiment.</strong> The demo config’s 576 calls carry two
+  independent clusters. Scale by adding tasks.</li>
+  <li><strong>Model snapshots need verifying</strong> against the providers’ current lists before the
+  first paid run.</li>
+  <li><strong>Power is unsimulated</strong>, so the smallest detectable effect is unknown. A null
+  result is only publishable if the interval excludes the preregistered effect — “not
+  significant” with a CI spanning [−8, +9] pp supports nothing.</li>
+  <li><strong>Nothing is preregistered yet.</strong> Three hypotheses, Holm, and a smallest effect of
+  practical interest should be fixed before the run, not after.</li>
+  <li><strong>The agentic arm is a second treatment, not the baseline.</strong> A reviewer that can grep
+  the repo and run tests makes its tool trajectory part of its context — a reviewer assigned one
+  packet re-acquires the others, and two reviewers exploring the same snapshot converge on the
+  same evidence. That is a genuine but <em>unmodelled</em> harness-mediated common cause, and it
+  needs a fresh workspace per call, redirected <code>HOME</code>, a pinned CLI version and network
+  off before it means anything.</li>
+</ul>
+
+<div class="note">
+<p><strong>The three load-bearing choices, if you remember nothing else.</strong></p>
+<p>1. The endpoint is a <em>gate probability</em>, not a correlation — zero pairwise correlation is
+compatible with R<sub>2/3</sub> ∈ {0.25, 0.75}.<br>
+2. The null is <em>task-conditioned and built by design</em> — pooling fabricates +7.9 pp, and the
+plug-in leaks 1/R of the truth into the baseline.<br>
+3. The treatment is <em>the harness, not the reviewer count</em> — task difficulty and shared context
+are both common causes, but only the second is something a pipeline engineer can change, so only
+the second supports a recommendation.</p>
+</div>
+</section>
+
+<footer>
+Review-Harness · <span class="mono-sm">hp/</span> package, 79 tests · companion to
+<em>Formalisms and Modelling Choices</em> and <em>Harness Design and Instrumentation</em>.
+All figures in §8–§9 are measured values from the test suite.
+</footer>
+
+</div>
+</body>
+</html>

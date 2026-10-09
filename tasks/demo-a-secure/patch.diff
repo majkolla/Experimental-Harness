@@ -1,0 +1,27 @@
+--- a/app/api/reports.py
++++ b/app/api/reports.py
+@@ -18,6 +18,11 @@ from app.db import session
+ from app.models import Report
+
+
++def _valid_sort(column: str) -> bool:
++    return column in {"created_at", "title", "owner_id"}
++
++
+ @bp.get("/reports")
+ def list_reports():
+     sort = request.args.get("sort", "created_at")
++    if not _valid_sort(sort):
++        abort(400, "unsupported sort column")
+     rows = session.execute(
+         f"SELECT id, title FROM reports ORDER BY {sort}"
+     ).fetchall()
+     return jsonify([dict(r) for r in rows])
+@@ -41,7 +46,9 @@ def export_reports():
+     sort = request.args.get("sort", "created_at")
++    if not _valid_sort(sort):
++        abort(400, "unsupported sort column")
+     rows = session.execute(
+         f"SELECT id, title, body FROM reports ORDER BY {sort}"
+     ).fetchall()
+     return csv_response(rows)

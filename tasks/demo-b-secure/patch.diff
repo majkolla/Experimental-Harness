@@ -1,0 +1,23 @@
+--- a/svc/files/download.go
++++ b/svc/files/download.go
+@@ -12,10 +12,20 @@ import (
+ 	"path/filepath"
+ )
+
+ func Download(w http.ResponseWriter, r *http.Request) {
+ 	name := r.URL.Query().Get("name")
+-	full := filepath.Join(baseDir, name)
++	full := filepath.Clean(filepath.Join(baseDir, name))
++	rel, err := filepath.Rel(baseDir, full)
++	if err != nil || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
++		http.Error(w, "bad path", 400)
++		return
++	}
+ 	f, err := os.Open(full)
+ 	if err != nil {
+ 		http.Error(w, "not found", 404)
+ 		return
+ 	}
+ 	defer f.Close()
+ 	io.Copy(w, f)
+ }

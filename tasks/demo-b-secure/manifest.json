@@ -1,0 +1,11 @@
+{
+  "task_id": "demo-b-secure",
+  "cluster": "DEMO-CVE-B",
+  "label": "secure",
+  "functional": "pass",
+  "cwe": "CWE-22",
+  "sibling_of": "demo-b-vuln",
+  "oracle_notes": "Containment is established on the resolved path with filepath.Rel, matching the project's safeJoin helper. Approval is correct here.",
+  "exploit_path": null,
+  "content_status": "PLACEHOLDER -- replace with real CVE material"
+}

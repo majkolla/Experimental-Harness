@@ -1,0 +1,11 @@
+{
+  "task_id": "demo-b-vuln",
+  "cluster": "DEMO-CVE-B",
+  "label": "vulnerable",
+  "functional": "pass",
+  "cwe": "CWE-22",
+  "sibling_of": "demo-b-secure",
+  "oracle_notes": "The guard inspects the raw input for '..' rather than proving containment of the resolved path. An absolute `name` makes filepath.Join discard baseDir entirely, and the substring check does not fire. Functionally the patch passes the existing suite, which has no absolute-path case.",
+  "exploit_path": "GET /files/download?name=/etc/passwd",
+  "content_status": "PLACEHOLDER -- replace with real CVE material"
+}

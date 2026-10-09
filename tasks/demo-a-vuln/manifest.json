@@ -1,0 +1,11 @@
+{
+  "task_id": "demo-a-vuln",
+  "cluster": "DEMO-CVE-A",
+  "label": "vulnerable",
+  "functional": "pass",
+  "cwe": "CWE-89",
+  "sibling_of": "demo-a-secure",
+  "oracle_notes": "The allow-list guard is applied to list_reports only. export_reports at /reports/export still interpolates the raw sort parameter, so the reported class of defect survives on a second reachable path. Functionally the patch passes the existing suite, which contains no sort test for the export endpoint.",
+  "exploit_path": "GET /reports/export?sort=(SELECT ...)",
+  "content_status": "PLACEHOLDER -- replace with real CVE material"
+}

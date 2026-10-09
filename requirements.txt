@@ -1,0 +1,9 @@
+# Analysis and tests need nothing but the standard library plus pytest.
+pytest>=8.0
+
+# Provider SDKs are optional and imported lazily inside hp/providers.py, so the
+# test suite and the offline self-test run with none of them installed. Install
+# whichever backends experiment.json actually references:
+#   anthropic>=0.40
+#   openai>=1.60
+#   ollama>=0.4
