@@ -63,6 +63,7 @@ def pin_all(obj):
             if m["provider"] == "google":
                 m["model"] = m["snapshot"] = f"test-{ref.lower()}-model-001"
         m["reasoning_params"] = {}
+        m["identity_terms"] = [f"test-vendor-{ref.lower()}"]
     obj["allowed_precisions"] = ["test-precision"]
     for ref in obj["prices_usd_per_mtok"]:
         obj["prices_usd_per_mtok"][ref] = {"input": 1.0, "output": 2.0}

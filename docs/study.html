@@ -90,8 +90,8 @@ Stage 5  review         e0 (+ Experiment B packets), crossed x x r x j schedule 
 <tr><td>§4.5</td><td>dq, dt, dt/dq vs the benchmark reference (Q6)</td><td><code>analysis/commonmode.py</code></td><td>concentrated cause &rarr; dt/dq &gt; 3/2; diffuse &rarr; 1</td></tr>
 <tr><td>§4.7</td><td>0 / 0.216 / 0.30 / 0.45 at 30% each (Q20)</td><td><code>estimators.gate_risk</code>, <code>analysis/commonmode.py</code></td><td><code>test_three_reviewers_at_thirty_percent_span_zero_to_forty_five</code></td></tr>
 <tr><td>§5.4</td><td>Registered split; test lock until freeze</td><td><code>bank/split.py</code>, <code>study_config.freeze</code></td><td><code>test_bank_pipeline.py</code> lock tests; <code>test_study_config.py</code> split SHA</td></tr>
-<tr><td>§6</td><td>Fixed parameters, defaults in config, placeholders, pins (Q16, Q17)</td><td><code>study_config.py</code>, <code>study.jsonc</code>, <code>providers/</code></td><td><code>test_study_config.py</code> (37), <code>test_openweight.py</code>, <code>test_providers_v13.py</code></td></tr>
-<tr><td>§7</td><td>Stage 1: 10/10 rule, signatures, ordinary/flaky tests, statuses</td><td><code>bank/reproduce.py</code>, <code>bank/vul4j.py</code></td><td><code>test_bank_pipeline.py</code> reproduction tests, surefire parsing</td></tr>
+<tr><td>§6</td><td>Fixed parameters, defaults in config, placeholders, pins (Q16, Q17)</td><td><code>study_config.py</code>, <code>study.jsonc</code>, <code>providers/</code></td><td><code>test_study_config.py</code> (41), <code>test_openweight.py</code>, <code>test_providers_v13.py</code></td></tr>
+<tr><td>§7</td><td>Stage 1: 10/10 rule, signatures, ordinary/flaky tests, statuses</td><td><code>bank/reproduce.py</code>, <code>bank/vul4j.py</code></td><td><code>test_bank_pipeline.py</code> reproduction tests, surefire parsing; <code>test_each_pov_test_needs_its_own_stable_signature_not_one_shared</code>; container workspaces removed (<code>test_container_runner_removes_workspaces</code>)</td></tr>
 <tr><td>§7 step 6</td><td><code>suite_unstable</code> rule <span class="tag prov">provisional</span></td><td><code>bank/reproduce.status_for</code></td><td><code>test_status_rule</code></td></tr>
 <tr><td>§8</td><td>Generation (no PoV channel), six classes, signature match (Q14, Q19)</td><td><code>bank/generate.py</code>, <code>bank/classify.py</code></td><td><code>test_classify.py</code> (incl. different signature &rarr; not a near-miss), <code>test_bank_pipeline.py</code></td></tr>
 <tr><td>§9</td><td>Twins: author F, 10/10, rubric flagged, correction order, stop point (Q15, Q21)</td><td><code>bank/sibling.py</code>, <code>bank/select.py</code></td><td><code>test_twins_are_validated_and_measured</code>, <code>test_live_author_stops_and_invalid_twins_can_be_replaced</code></td></tr>
@@ -100,27 +100,27 @@ Stage 5  review         e0 (+ Experiment B packets), crossed x x r x j schedule 
 <tr><td>§11.3</td><td>verdict / risk / justification (Q4)</td><td><code>schema.py</code> (<code>REVIEW_V13</code>)</td><td><code>test_schema_v13.py</code></td></tr>
 <tr><td>§11.4</td><td>Crossed schedule, shuffle, no two calls on a candidate in flight</td><td><code>review/schedule.py</code>, <code>engine.py</code>, <code>runner.eligible_order</code></td><td><code>test_schedule.py</code>, <code>test_dispatch.py</code></td></tr>
 <tr><td>§11.5</td><td>Decision rule, literal (Q3); disagreement rate</td><td><code>analysis/data.py</code></td><td><code>test_rates.py</code></td></tr>
-<tr><td>§11.6</td><td>Six statuses (Q2); fail-closed; 4 attempts across resumes (Q1)</td><td><code>schema.py</code>, <code>engine.py</code>, <code>analysis/data.py</code></td><td><code>test_fail_closed_coding</code>, <code>test_attempt_budget_continues_across_resumes</code></td></tr>
+<tr><td>§11.6</td><td>Six statuses (Q2); fail-closed; 4 attempts across resumes (Q1)</td><td><code>schema.py</code>, <code>engine.py</code>, <code>analysis/data.py</code></td><td><code>test_fail_closed_coding</code>, <code>test_attempt_budget_continues_across_resumes</code>, <code>test_attempts_are_logged_as_they_end_so_a_killed_run_keeps_its_budget</code>, <code>test_a_missing_key_or_sdk_stops_the_run_and_logs_nothing</code></td></tr>
 <tr><td>§12.2</td><td>Fixed, Generator-aware, Exclusion; ties by cost then id</td><td><code>analysis/policies.py</code></td><td><code>test_exclusion_equals_fixed_in_every_row_except_the_family_of_r_star</code>, <code>test_ties_are_broken_by_cost_then_model_id</code></td></tr>
 <tr><td>§12.3</td><td>One threshold per reviewer, t_p, t_o, all on core-bank dev rows (Q7, Q10)</td><td><code>analysis/thresholds.py</code></td><td><code>test_threshold_is_the_smallest_observed_cutoff_meeting_the_target</code>, <code>test_one_threshold_per_reviewer_is_used_by_every_policy</code></td></tr>
 <tr><td>§12.4</td><td>Regret rule, primary contrast</td><td><code>analysis/regret.py</code></td><td><code>test_regret_rule_passes_two_tied_reviewers_and_fails_a_clearly_worse_one</code></td></tr>
 <tr><td>§12.7</td><td><code>paid_block_on_test</code> (Q21)</td><td><code>review/schedule.py</code></td><td><code>test_paid_block_on_test_false_moves_commercial_reviewers_off_extension_test_pairs</code></td></tr>
 <tr><td>§13</td><td>Experiment B: packets, PoV file excluded, cheap reviewers, 12 CVEs (Q13)</td><td><code>review/packets.py</code>, <code>review/schedule.py</code>, <code>analysis/expb.py</code></td><td><code>test_dispatch.py</code> packet tests, <code>test_experiment_b_is_at_most_1944_calls_and_development_only</code></td></tr>
-<tr><td>§14.1, §15.1</td><td>U, A per cell; trials &rarr; candidate &rarr; CVE &rarr; row &rarr; equal-generator mean</td><td><code>analysis/rates.py</code></td><td><code>test_rates_are_averaged_per_generator_never_pooled</code></td></tr>
+<tr><td>§14.1, §15.1</td><td>U, A per cell; trials &rarr; candidate &rarr; CVE &rarr; row &rarr; equal-generator mean</td><td><code>analysis/rates.py</code> (<code>Rates</code>, <code>cell_table</code>: each rate printed with its unresolved trials)</td><td><code>test_rates_are_averaged_per_generator_never_pooled</code>, <code>test_cell_table_reports_unresolved_trials_and_pairs_left_out_of_c</code></td></tr>
 <tr><td>§14.3, §14.3b</td><td>RQ2, RQ2o (cheap / open 2-of-3 vs strong*)</td><td><code>analysis/confirm.py</code></td><td><code>test_inference.py</code>, <code>test_study_e2e.py</code></td></tr>
 <tr><td>§14.4</td><td>D_diag (probability and logit scale), core and open blocks</td><td><code>analysis/rates.d_diag</code>, <code>analysis/extension.diag_blocks</code></td><td><code>test_d_diag_recovers_a_planted_diagonal_bump_and_ignores_additive_effects</code></td></tr>
-<tr><td>§14.5</td><td>C on valid trials only, exclusions counted (Q1)</td><td><code>analysis/rates.discrimination</code></td><td><code>test_discrimination_uses_valid_trials_only_and_counts_exclusions</code></td></tr>
+<tr><td>§14.5</td><td>C on valid trials only; pairs left out of C counted per cell and overall, next to C (Q1)</td><td><code>analysis/rates.discrimination</code>, <code>rates.cell_table</code>, <code>rates.c_exclusions</code></td><td><code>test_discrimination_uses_valid_trials_only_and_counts_exclusions</code>, <code>test_cell_table_reports_unresolved_trials_and_pairs_left_out_of_c</code>, <code>test_reports_carry_the_cell_tables</code></td></tr>
 <tr><td>§14.6</td><td>RQ3 and its drivers (generator, CWE, similarity, patch size)</td><td><code>analysis/commonmode.py</code></td><td><code>test_commonmode.py</code></td></tr>
-<tr><td>§14.7</td><td>Pipeline risk, commercial vs open</td><td><code>analysis/extension.pipeline_risk</code></td><td><code>test_full_report_has_every_section</code></td></tr>
-<tr><td>§14.8</td><td>&Delta;6 (RQ6), cross-family cells, equal reviewer weight</td><td><code>analysis/extension.delta6</code></td><td><code>test_delta6_uses_cross_family_cells_with_equal_reviewer_weight</code></td></tr>
+<tr><td>§14.7</td><td>Pipeline risk, commercial vs open</td><td><code>analysis/extension.pipeline_risk</code> (a CVE with near-misses but no U makes its row undefined)</td><td><code>test_full_report_has_every_section</code>, <code>test_pipeline_risk_is_undefined_when_a_cve_with_near_misses_has_no_u</code></td></tr>
+<tr><td>§14.8</td><td>&Delta;6 (RQ6), cross-family cells, equal reviewer weight</td><td><code>analysis/extension.delta6</code> (infeasible reviewers left out and listed)</td><td><code>test_delta6_uses_cross_family_cells_with_equal_reviewer_weight</code>, <code>test_delta6_leaves_infeasible_reviewers_out_and_lists_them</code></td></tr>
 <tr><td>§15.2</td><td>Cluster bootstrap, frame from core rows (Q9)</td><td><code>analysis/confirm.bootstrap</code></td><td><code>test_extension_isolation.py</code></td></tr>
-<tr><td>§15.3, §15.4</td><td>Component p-values, max, Holm at 0.025, adjusted bounds, equivalence outside (Q8)</td><td><code>analysis/confirm.decide</code> (legacy <code>bootstrap.holm</code>)</td><td><code>test_inference.py</code></td></tr>
+<tr><td>§15.3, §15.4</td><td>Component p-values, max, Holm at 0.025, adjusted bounds, equivalence outside (Q8)</td><td><code>analysis/confirm.decide</code> (legacy <code>bootstrap.holm</code>)</td><td><code>test_inference.py</code>, <code>test_one_sided_bounds_agree_with_the_p_value_rule</code>, <code>test_undefined_draws_count_against_the_claim</code></td></tr>
 <tr><td>§15.5</td><td>Sensitivity analyses 1-9</td><td><code>analysis/report.sensitivity</code></td><td><code>test_full_report_has_every_section</code></td></tr>
 <tr><td>§15.6</td><td>Feasibility half-widths <span class="tag prov">provisional draws</span></td><td><code>analysis/regret.projected_half_widths</code></td><td>dev report</td></tr>
 <tr><td>§15.7</td><td>RQ2o promotion: all three conditions (Q21)</td><td><code>analysis/extension.decide_promotion</code></td><td><code>test_rq2o_promotion_fires_only_when_all_three_conditions_hold</code></td></tr>
 <tr><td>§17</td><td>Schedule sizes 2,484 / 6,048 / 7,452 / 18,144 / &le; 1,944</td><td><code>review/schedule.py</code></td><td><code>test_schedule_sizes_at_the_maxima</code></td></tr>
-<tr><td>§18.3</td><td>Logs, extra logs (Q18), recomputable from the logs alone</td><td><code>logs.py</code></td><td><code>test_logs.py</code>, <code>test_every_number_is_recomputable_from_the_logs_alone</code></td></tr>
-<tr><td>§19</td><td>Freeze; confirm refuses unless frozen</td><td><code>study_config.freeze</code>, <code>analysis/report.confirm</code></td><td><code>test_freeze_round_trip_and_every_way_to_break_it</code>, <code>test_confirm_refuses_an_unfrozen_study</code></td></tr>
+<tr><td>§18.3</td><td>Logs, extra logs (Q18), recomputable from the logs alone</td><td><code>logs.py</code></td><td><code>test_logs.py</code>, <code>test_every_number_is_recomputable_from_the_logs_alone</code>, <code>test_append_after_a_partial_line_starts_a_new_line</code></td></tr>
+<tr><td>§19</td><td>Freeze (config, code, artefact and advisory hashes); re-freezing refused once the test split holds work; confirm refuses unless frozen, on test rows made under another config, and on a run with missing or open calls</td><td><code>study_config.freeze</code>, <code>analysis/report.confirm</code>, <code>report.completeness</code></td><td><code>test_freeze_round_trip_and_every_way_to_break_it</code>, <code>test_freezing_again_after_test_split_work_is_refused</code>, <code>test_edited_advisories_break_the_freeze</code>, <code>test_confirm_refuses_an_unfrozen_study</code>, <code>test_confirm_refuses_test_rows_made_under_another_config</code>, <code>test_analysis_refuses_a_run_with_missing_or_open_calls</code></td></tr>
 </tbody></table></div>
 
 <h2>3. Invariants</h2>
@@ -132,7 +132,9 @@ Stage 5  review         e0 (+ Experiment B packets), crossed x x r x j schedule 
 <tr><td>Pins, abort on mismatch</td><td><code>engine.run_calls</code> (served snapshot), <code>providers/openweight.py</code> (weights, precision, stack: start, end, reload)</td><td><code>test_a_served_snapshot_mismatch_is_logged_then_stops_the_run</code>, <code>test_openweight.py</code></td></tr>
 <tr><td>Only <code>ok</code> is done; closed calls never re-rolled</td><td><code>engine.closed_calls</code></td><td><code>test_a_non_retryable_failure_closes_the_call</code></td></tr>
 <tr><td>Global shuffle + admission rule</td><td><code>review/schedule.build</code>, <code>runner.eligible_order</code></td><td><code>test_the_schedule_is_globally_shuffled_and_seeded</code>, <code>test_admission_never_puts_two_calls_on_one_candidate_in_flight</code></td></tr>
-<tr><td>Append-only logs</td><td><code>logs.append</code></td><td><code>test_logs_are_only_ever_appended</code></td></tr>
+<tr><td>Append-only logs; every attempt logged the moment it ends</td><td><code>logs.append</code>, <code>engine.run_calls</code> (<code>on_attempt</code>)</td><td><code>test_logs_are_only_ever_appended</code>, <code>test_attempts_are_logged_as_they_end_so_a_killed_run_keeps_its_budget</code></td></tr>
+<tr><td>A local fault (missing key or SDK) stops the run; it is never logged as a model failure</td><td><code>engine.LocalFault</code></td><td><code>test_a_missing_key_or_sdk_stops_the_run_and_logs_nothing</code></td></tr>
+<tr><td>No analysis of an incomplete run</td><td><code>analysis/report.completeness</code> (schedule rebuilt from the logs)</td><td><code>test_analysis_refuses_a_run_with_missing_or_open_calls</code></td></tr>
 <tr><td>Test split locked until freeze</td><td><code>bank/split.assert_accessible</code>, <code>study_config.freeze_status</code></td><td><code>test_test_split_is_locked_until_freeze</code></td></tr>
 <tr><td>One threshold per reviewer</td><td><code>analysis/thresholds.py</code> (no generator argument exists)</td><td><code>test_one_threshold_per_reviewer_is_used_by_every_policy</code></td></tr>
 <tr><td>Never pool calls</td><td><code>analysis/rates.Rates</code></td><td><code>test_rates_are_averaged_per_generator_never_pooled</code></td></tr>
@@ -147,8 +149,10 @@ mode; roles, families, tiers that differ from the design; per-provider pin rules
 and context; temperature &le; 0 or top-p outside (0, 1]; an omitted sampling parameter without a deviation note; trials
 &ne; 3 or a gate other than 2-of-3; more than 4 attempts; fewer than 2,000 / 10,000 draws in live mode;
 <code>extension.enabled</code> not set explicitly; an unknown <code>rq2o_mode</code>; a changed split file; missing prompt
-slots; open models in Experiment B; an unknown suite scope; a freeze block whose config, code or artefact hashes no longer
-match. Every value the specification marks as a default carries a <code>// [default ...]</code> comment, checked by a test.</p>
+slots; open models in Experiment B; an unknown suite scope; in live mode, a model without a non-empty
+<code>identity_terms</code> list (the leak scan needs it); a freeze block whose config, code (the running <code>hp/</code>
+package and <code>study.py</code>), artefact or advisory hashes no longer match. <code>freeze</code> itself refuses once
+the test split holds generation, twin, input or review rows. Every value the specification marks as a default carries a <code>// [default ...]</code> comment, checked by a test.</p>
 
 <h2>5. Provisional items (reconcile with the v1.3 text)</h2>
 <ol>
@@ -172,16 +176,23 @@ match. Every value the specification marks as a default carries a <code>// [defa
 <li><code>inputs.jsonl</code> is logged in addition to the Q18 logs (it records overflow and leak exclusions).</li>
 <li>Strong panel (RQ3, descriptive): each member at its own threshold; cheap panel at t_p; open panel at t_o.</li>
 <li>Discrimination: a trial is valid if its call ended <code>ok</code> (an abstention with a risk score counts).</li>
+<li>Completeness: <code>analyse-dev</code> and <code>confirm</code> rebuild the schedule from the logs and refuse if any scheduled call has no row or is still open.</li>
+<li>Re-freezing: allowed (and recorded in <code>freeze_history.jsonl</code>) until the test split holds any work; refused after.</li>
+<li>The freeze also hashes <code>&lt;paths.inputs&gt;/advisories</code>; the code hash covers the running package, not files next to the config.</li>
+<li>Leak scan identity terms are per model, in the config (<code>identity_terms</code>), required in live mode.</li>
+<li>Bound convention: a one-sided bound and its p-value always agree (bound beyond b &hArr; p &le; &alpha;); a resample with an undefined value counts against the claim.</li>
+<li>Pipeline risk: a generator row is undefined if any eligible CVE with near-misses has no U under the policy; &Delta;6 leaves out infeasible reviewers and lists them.</li>
+<li>Stage 1 with several PoV tests: each PoV test needs its own single stable signature.</li>
 </ol>
 
 <h2>6. Still a placeholder, or unverified offline</h2>
 <ul>
-<li><span class="tag todo">pin</span> Model ids and snapshots for A, B, C, a, b, c; <code>reasoning_params</code> per model; any sampling deviation (with a note); the pin-rule regexes.</li>
+<li><span class="tag todo">pin</span> Model ids and snapshots for A, B, C, a, b, c; <code>reasoning_params</code> and <code>identity_terms</code> per model; any sampling deviation (with a note); the pin-rule regexes.</li>
 <li><span class="tag todo">pin</span> Open weights X, Y, Z: model, weights SHA-256, precision, serving stack, host, context length, GPUs; <code>allowed_precisions</code>.</li>
 <li><span class="tag todo">pin</span> The price sheet for all nine models (hosted price for X, Y, Z) and the GPU-hour price.</li>
 <li><span class="tag todo">verify</span> Google adapter against the installed <code>google-genai</code> SDK (field names, <code>HttpOptions</code> timeout units); tested with a fake client only. Install <code>openai</code> and <code>google-genai</code>.</li>
 <li><span class="tag todo">verify</span> Anthropic forced tool use together with the chosen reasoning setting (<code>tool_choice: "auto"</code> is available per model).</li>
-<li><span class="tag todo">verify</span> <code>ContainerVul4J</code>: image and digest, and every command line (<code>vul4j info / checkout / apply / compile / test --tests</code>), the surefire report location, the clean state between reruns, and the metadata it reads (PoV tests and output, commits, module tests).</li>
+<li><span class="tag todo">verify</span> <code>ContainerVul4J</code>: image and digest, and every command line (<code>vul4j info / checkout / apply / compile / test --tests</code>), the surefire report location, the clean state between reruns, the metadata it reads (PoV tests and output, commits, module tests), and workspace removal (files the container writes may be root-owned; they are removed from inside the container first).</li>
 <li><span class="tag todo">write</span> Advisories per CVE (<code>bank_inputs/advisories/&lt;cve&gt;.json</code>: CWE and a neutral summary without ids or project names).</li>
 <li><span class="tag todo">write</span> Twins: the author's F diffs in correction order (<code>bank_inputs/siblings/&lt;pair_id&gt;.diff</code>).</li>
 <li><span class="tag todo">run</span> The timing pilot on Jenkins, CXF and Camel; then choose <code>stage1.suite_scope</code>.</li>

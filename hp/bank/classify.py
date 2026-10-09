@@ -61,50 +61,52 @@ def classify(runner, gen_row, repro_row, reruns, scope="full"):
         out.update({"class": "build_fail", "reason": str(exc)[:200]})
         return out
 
-    ordinary = list(repro_row["ordinary_tests"])
-    pov = list(repro_row["pov_tests"])
-    original = repro_row["signature"] or {}
+    try:
+        ordinary = list(repro_row["ordinary_tests"])
+        pov = list(repro_row["pov_tests"])
+        original = repro_row["signature"] or {}
 
-    screen = runner.run_tests(h, scope="full")
-    out["wall_s"] += screen.wall_s
-    if not screen.completed:
-        out.update({"class": "indeterminate", "reason": "incomplete"})
-        return out
-    broken = [t for t in ordinary if screen.outcome(t) != "pass"]
-    if broken:
-        out.update({"class": "regression_fail", "reason": f"{len(broken)} ordinary test(s) fail",
-                    "rerun_results": [{"run": 0, "ordinary_failures": broken[:10]}]})
-        return out
+        screen = runner.run_tests(h, scope="full")
+        out["wall_s"] += screen.wall_s
+        if not screen.completed:
+            out.update({"class": "indeterminate", "reason": "incomplete"})
+            return out
+        broken = [t for t in ordinary if screen.outcome(t) != "pass"]
+        if broken:
+            out.update({"class": "regression_fail", "reason": f"{len(broken)} ordinary test(s) fail",
+                        "rerun_results": [{"run": 0, "ordinary_failures": broken[:10]}]})
+            return out
 
-    if scope == "module_fallback":
-        module = set(runner.module_tests(cve) or ordinary)
-        tests = pov + [t for t in ordinary if t in module]
-    else:
-        tests = None
-    in_scope = ordinary if tests is None else [t for t in ordinary if t in set(tests)]
+        if scope == "module_fallback":
+            module = set(runner.module_tests(cve) or ordinary)
+            tests = pov + [t for t in ordinary if t in module]
+        else:
+            tests = None
+        in_scope = ordinary if tests is None else [t for t in ordinary if t in set(tests)]
 
-    pov_states, ord_fail, incomplete = [], False, False
-    for i in range(1, reruns + 1):
-        r = runner.run_tests(h, scope=scope, tests=tests)
-        out["wall_s"] += r.wall_s
-        if not r.completed:
-            incomplete = True
-            out["rerun_results"].append({"run": i, "completed": False})
-            continue
-        fails = [t for t in in_scope if r.outcome(t) != "pass"]
-        ord_fail = ord_fail or bool(fails)
-        state = []
-        for t in pov:
-            o = r.outcome(t)
-            if o == "pass":
-                state.append("pass")
-            elif same_signature(r.signature(t), original.get(t)):
-                state.append("fail_original")
-            else:
-                state.append("fail_other")
-        pov_states.append(tuple(state))
-        out["rerun_results"].append({"run": i, "pov": state, "ordinary_failures": fails[:10]})
-    runner.release(h)
+        pov_states, ord_fail, incomplete = [], False, False
+        for i in range(1, reruns + 1):
+            r = runner.run_tests(h, scope=scope, tests=tests)
+            out["wall_s"] += r.wall_s
+            if not r.completed:
+                incomplete = True
+                out["rerun_results"].append({"run": i, "completed": False})
+                continue
+            fails = [t for t in in_scope if r.outcome(t) != "pass"]
+            ord_fail = ord_fail or bool(fails)
+            state = []
+            for t in pov:
+                o = r.outcome(t)
+                if o == "pass":
+                    state.append("pass")
+                elif same_signature(r.signature(t), original.get(t)):
+                    state.append("fail_original")
+                else:
+                    state.append("fail_other")
+            pov_states.append(tuple(state))
+            out["rerun_results"].append({"run": i, "pov": state, "ordinary_failures": fails[:10]})
+    finally:
+        runner.release(h)
     out["wall_s"] = round(out["wall_s"], 3)
 
     if incomplete:

@@ -163,3 +163,55 @@ def d_diag(rates, rows_g, cols_r, state_or_c, rows=None):
     loff = [lg[(g, r)] for g in rows_g for r in cols_r if cols_r.index(r) != rows_g.index(g)]
     return {"prob": d, "logit": sum(ldiag) / len(ldiag) - sum(loff) / len(loff),
             "cells": {f"{g}->{r}": v for (g, r), v in cells.items()}}
+
+
+def cell_table(rates, reviewers):
+    """Per (generator, reviewer) cell: U, A, C next to the counts behind them.
+
+    `unresolved_V` / `unresolved_F` are trials coded fail-closed in the cell (of
+    `trials_V` / `trials_F` scheduled); `C_excluded_pairs` are pairs left out of C
+    because one side has no valid trial (SPEC_ANSWERS Q1), with their share of
+    the cell's pairs. Rates are row means over pairs (CVEs), as in `Rates.rows`.
+    """
+    view = rates.view
+    rows = rates.rows([(r, s) for r in reviewers for s in STATES] + [("C", r) for r in reviewers])
+    out = {}
+    for g in rates.generators:
+        pids = [pid for pid in sorted(rates.items) if view.pairs[pid]["generator"] == g]
+        out[g] = {}
+        for r in reviewers:
+            n_pairs = n_c_out = 0
+            unres = {s: 0 for s in STATES}
+            trials = {s: 0 for s in STATES}
+            for pid in pids:
+                if (r, "V") not in rates.items[pid]:
+                    continue
+                n_pairs += 1
+                for s in STATES:
+                    ts = view.trials(pid, s, r)
+                    trials[s] += len(ts)
+                    unres[s] += sum(1 for t in ts if not t.ok)
+                if ("C", r) not in rates.items[pid]:
+                    n_c_out += 1
+            out[g][r] = {
+                "U": rows[g].get((r, "V")), "A": rows[g].get((r, "F")), "C": rows[g].get(("C", r)),
+                "pairs": n_pairs,
+                "unresolved_V": unres["V"], "trials_V": trials["V"],
+                "unresolved_F": unres["F"], "trials_F": trials["F"],
+                "C_excluded_pairs": n_c_out,
+                "C_excluded_share": (n_c_out / n_pairs) if n_pairs else None,
+            }
+    return out
+
+
+def c_exclusions(table):
+    """Totals of pairs left out of C, per reviewer and overall, from `cell_table`."""
+    per = {}
+    for g, cells in table.items():
+        for r, c in cells.items():
+            a = per.setdefault(r, [0, 0])
+            a[0] += c["C_excluded_pairs"]
+            a[1] += c["pairs"]
+    tot = [sum(v[0] for v in per.values()), sum(v[1] for v in per.values())]
+    fmt = lambda v: {"excluded_pairs": v[0], "pairs": v[1], "share": v[0] / v[1] if v[1] else None}
+    return {"by_reviewer": {r: fmt(v) for r, v in sorted(per.items())}, "overall": fmt(tot)}

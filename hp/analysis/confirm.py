@@ -27,6 +27,7 @@ the frozen thresholds and the frozen primary choice; nothing is refit on test.
 {RQ1, RQ2}; RQ2o can be rejected only if RQ2 is, adjusted p = max(adj p RQ2, p RQ2o).
 """
 
+import math
 import random
 
 from .. import bootstrap as legacy_bootstrap
@@ -36,13 +37,37 @@ from .rates import Rates
 from .regret import draw_clusters
 
 
+INF = float("inf")
+
+
+def _k(alpha, n):
+    return int(math.floor(alpha * (n + 1) + 1e-9))
+
+
+def lower_bound(vals, alpha):
+    """One-sided lower bound at level alpha, consistent with the p-value rule:
+    bound > b  <=>  (1 + #{v <= b}) / (B + 1) <= alpha. A draw with no value
+    (None) counts against the claim. None if unbounded."""
+    w = sorted(-INF if v is None else v for v in vals)
+    k = _k(alpha, len(w))
+    return w[k - 1] if k >= 1 and w and w[k - 1] != -INF else None
+
+
+def upper_bound(vals, alpha):
+    """One-sided upper bound at level alpha: bound < b <=> (1 + #{v >= b}) / (B + 1) <= alpha."""
+    w = sorted(INF if v is None else v for v in vals)
+    k = _k(alpha, len(w))
+    return w[len(w) - k] if k >= 1 and w and w[len(w) - k] != INF else None
+
+
 def _pct(vals, q):
-    v = sorted(vals)
-    return v[int(q * (len(v) - 1))]
+    """Two-sided percentile end: q < 0.5 a lower bound, q > 0.5 an upper bound."""
+    return lower_bound(vals, q) if q < 0.5 else upper_bound(vals, 1 - q)
 
 
 def _p_wrong(vals, wrong):
-    return (1 + sum(1 for v in vals if wrong(v))) / (len(vals) + 1)
+    """(1 + #draws on the wrong side) / (B + 1); a draw with no value is on the wrong side."""
+    return (1 + sum(1 for v in vals if v is None or wrong(v))) / (len(vals) + 1)
 
 
 def contrasts(choice, primary, extension_open=False, core=True):
@@ -123,20 +148,20 @@ def bootstrap(rates, fns, draws, seed, label):
         draw = draw_clusters(rng, rates.clusters)
         rows = rates.rows(keys, draw)
         for n, fn in fns.items():
-            v = fn(rates, rows)
-            if v is not None:
-                dist[n].append(v)
+            dist[n].append(fn(rates, rows))  # None (undefined in this resample) is kept
     return point, dist
 
 
 def summarise(point, dist, alpha2=0.05):
     out = {}
     for n, v in dist.items():
-        if not v or point.get(n) is None:
-            out[n] = {"estimate": point.get(n), "ci95": None, "draws": len(v)}
+        undefined = sum(1 for x in v if x is None)
+        if not v or point.get(n) is None or undefined == len(v):
+            out[n] = {"estimate": point.get(n), "ci95": None, "draws": len(v),
+                      "undefined_draws": undefined}
             continue
         out[n] = {"estimate": point[n], "ci95": [_pct(v, alpha2 / 2), _pct(v, 1 - alpha2 / 2)],
-                  "draws": len(v)}
+                  "draws": len(v), "undefined_draws": undefined}
     return out
 
 
@@ -173,7 +198,7 @@ def decide(point, dist, family, margins, alpha, mode, sesoi):
             v = dist.get(name) or []
             if v:
                 lv = levels[h]
-                bounds[name] = _pct(v, 1 - lv) if side == "upper" else _pct(v, lv)
+                bounds[name] = upper_bound(v, lv) if side == "upper" else lower_bound(v, lv)
         decisions[h] = {"p": hyp_p[h], "p_holm": adj[h], "level": levels[h],
                         "holm_adjusted_bounds": bounds,
                         "decision": _label(h, rejected, point, dist, margins, levels[h])}
@@ -181,7 +206,8 @@ def decide(point, dist, family, margins, alpha, mode, sesoi):
         v = dist.get("delta1_U") or []
         if v:
             lo, hi = _pct(v, 0.025), _pct(v, 0.975)
-            decisions["RQ1"]["practical_equivalence"] = bool(-sesoi < lo and hi < sesoi)
+            decisions["RQ1"]["practical_equivalence"] = bool(
+                lo is not None and hi is not None and -sesoi < lo and hi < sesoi)
     return {"components": comp, "hypotheses": decisions}
 
 
@@ -192,7 +218,7 @@ def _label(h, rejected, point, dist, margins, level):
         return "improvement"
     key = "delta2_U" if h == "RQ2" else "delta2o_U"
     v = dist.get(key) or []
-    safer = v and _pct(v, 1 - level) < 0
+    safer = bool(v) and _p_wrong(v, lambda x: x >= 0) <= level + 1e-12
     return "cheaper and safer" if safer else "cheaper and non-inferior"
 
 

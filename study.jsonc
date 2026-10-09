@@ -15,40 +15,42 @@
   "prompts": {"review": "prompts/review_v13.md", "generate": "prompts/generate_v13.md"},
 
   // Nine models. Families and tiers are fixed by the design (§2); ids are pinned at freeze.
+  // identity_terms: vendor / family / product names that would reveal a generator if they
+  // appeared in a patch under review (leak scan, case-insensitive); required in live mode.
   "models": {
     "A": {"roles": ["generator", "reviewer"], "family": 1, "tier": "strong", "provider": "anthropic",
           "model": "TO_PIN_AT_FREEZE", "snapshot": "TO_PIN_AT_FREEZE",
-          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
+          "reasoning_params": "TO_PIN_AT_FREEZE", "identity_terms": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
     "B": {"roles": ["generator", "reviewer"], "family": 2, "tier": "strong", "provider": "openai",
           "model": "TO_PIN_AT_FREEZE", "snapshot": "TO_PIN_AT_FREEZE",
-          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
+          "reasoning_params": "TO_PIN_AT_FREEZE", "identity_terms": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
     "C": {"roles": ["generator", "reviewer"], "family": 3, "tier": "strong", "provider": "google",
           "model": "TO_PIN_AT_FREEZE", "snapshot": "TO_PIN_AT_FREEZE", "api_key_env": "GOOGLE_API_KEY",
-          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
+          "reasoning_params": "TO_PIN_AT_FREEZE", "identity_terms": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
     "a": {"roles": ["reviewer"], "family": 1, "tier": "cheap", "provider": "anthropic",
           "model": "TO_PIN_AT_FREEZE", "snapshot": "TO_PIN_AT_FREEZE",
-          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
+          "reasoning_params": "TO_PIN_AT_FREEZE", "identity_terms": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
     "b": {"roles": ["reviewer"], "family": 2, "tier": "cheap", "provider": "openai",
           "model": "TO_PIN_AT_FREEZE", "snapshot": "TO_PIN_AT_FREEZE",
-          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
+          "reasoning_params": "TO_PIN_AT_FREEZE", "identity_terms": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
     "c": {"roles": ["reviewer"], "family": 3, "tier": "cheap", "provider": "google",
           "model": "TO_PIN_AT_FREEZE", "snapshot": "TO_PIN_AT_FREEZE", "api_key_env": "GOOGLE_API_KEY",
-          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
+          "reasoning_params": "TO_PIN_AT_FREEZE", "identity_terms": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
     "X": {"roles": ["generator", "reviewer"], "family": 4, "tier": "open", "provider": "openweight",
           "model": "TO_PIN_AT_FREEZE", "weights_sha": "TO_PIN_AT_FREEZE", "precision": "TO_PIN_AT_FREEZE",
           "serving_stack": "TO_PIN_AT_FREEZE", "host": "TO_PIN_AT_FREEZE", "num_ctx": "TO_PIN_AT_FREEZE",
           "gpus": "TO_PIN_AT_FREEZE", "reload_threshold_s": 1.0,
-          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
+          "reasoning_params": "TO_PIN_AT_FREEZE", "identity_terms": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
     "Y": {"roles": ["generator", "reviewer"], "family": 5, "tier": "open", "provider": "openweight",
           "model": "TO_PIN_AT_FREEZE", "weights_sha": "TO_PIN_AT_FREEZE", "precision": "TO_PIN_AT_FREEZE",
           "serving_stack": "TO_PIN_AT_FREEZE", "host": "TO_PIN_AT_FREEZE", "num_ctx": "TO_PIN_AT_FREEZE",
           "gpus": "TO_PIN_AT_FREEZE", "reload_threshold_s": 1.0,
-          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
+          "reasoning_params": "TO_PIN_AT_FREEZE", "identity_terms": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""},
     "Z": {"roles": ["generator", "reviewer"], "family": 6, "tier": "open", "provider": "openweight",
           "model": "TO_PIN_AT_FREEZE", "weights_sha": "TO_PIN_AT_FREEZE", "precision": "TO_PIN_AT_FREEZE",
           "serving_stack": "TO_PIN_AT_FREEZE", "host": "TO_PIN_AT_FREEZE", "num_ctx": "TO_PIN_AT_FREEZE",
           "gpus": "TO_PIN_AT_FREEZE", "reload_threshold_s": 1.0,
-          "reasoning_params": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""}
+          "reasoning_params": "TO_PIN_AT_FREEZE", "identity_terms": "TO_PIN_AT_FREEZE", "send_temperature": true, "send_top_p": true, "deviation_note": ""}
   },
 
   // Q17: one pin rule per provider (regex the model id and the served snapshot must match).

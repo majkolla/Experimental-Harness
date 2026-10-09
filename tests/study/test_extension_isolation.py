@@ -70,7 +70,7 @@ def test_core_estimates_are_bit_identical_after_stripping_extension_rows(full_ru
     assert _canon(with_ext) == _canon(without)
 
     dev_with = report.analyse_dev(cfg, rd, write=False)
-    dev_without = report.analyse_dev(cfg, stripped, write=False)
+    dev_without = report.analyse_dev(cfg, stripped, write=False, check=False)  # stripped on purpose
     assert _canon(_core_dev(dev_with)) == _canon(_core_dev(dev_without))
 
 

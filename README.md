@@ -23,7 +23,7 @@ provisional items and what is still a placeholder are in **`docs/study.html`**.
 ```
 python study.py validate      study.jsonc                    # live config: refused while any pin is TO_PIN_AT_FREEZE
 python study.py selftest      [--full]                        # the whole study offline: 9 synthetic models, mock Vul4J
-python -m pytest tests -q                                     # 318 tests, no network, no paid calls
+python -m pytest tests -q                                     # 355 tests, no network, no paid calls
 
 # a real run, in order (live config, once every pin is set)
 python study.py timing-pilot  study.jsonc --cves VUL4J-51,VUL4J-15,VUL4J-3 --runs 3
@@ -77,7 +77,7 @@ and the analysis recomputes everything from it offline. Companion theory:
 python main.py    experiment.json --dry-run     # validate, check balance, print cost. spends nothing
 python main.py    experiment.json               # run or resume
 python analyze.py experiment.json --json out.json
-python -m pytest  tests -q                      # whole suite (318), no network required
+python -m pytest  tests -q                      # whole suite (355), no network required
 ```
 
 An offline self-test exercises the whole path with a synthetic provider, so the

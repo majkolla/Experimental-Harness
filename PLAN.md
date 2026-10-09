@@ -2,7 +2,7 @@
 
 Step 0 deliverable, written 2026-10-09; **revised the same day after `docs/spec/SPEC_ANSWERS.md`** (see §9 and §10). Approved: "if nothing new conflicts, proceed with WP1". Work happens on branch `study-v1.3`.
 
-**Progress (2026-10-09): WP0-WP8 done**, one commit each on `study-v1.3`; 318 tests (79 legacy + 239 new), about 33 s, Python 3.9 and 3.13, no network. Implementation map: `docs/study.html`.
+**Progress (2026-10-10): WP0-WP8 done**, one commit each on `study-v1.3`, plus one commit of fixes from an independent review (section 10, items 21-31); 355 tests (79 legacy + 276 new), about 36 s, Python 3.9 and 3.13, no network. Implementation map: `docs/study.html`.
 
 **Source of truth for this revision:** `SPEC_ANSWERS.md` + spec v1.0 + the brief. `Experiment_Specification_v1_3.md` and the 9 Oct `experiment_notes.tex` were not delivered (not in the repo, the project or the chat), so the few details that only v1.3 itself fixes are filled in provisionally and listed in §10.
 
@@ -339,4 +339,18 @@ These are details that v1.3 itself fixes but neither SPEC_ANSWERS, v1.0 nor the 
 18. **`inputs.jsonl`.** Logged in addition to the Q18 logs; it records overflow and leak exclusions.
 19. **Panels in RQ3.** Cheap panel at t_p (primary), strong panel with each member at its own threshold (descriptive), open panel at t_o.
 20. **Valid trial for C.** A call that ended `ok` (an abstention with a risk score counts).
+
+Added after the independent code review (10 October; regression tests in `tests/study/test_review_fixes.py`):
+
+21. **Completeness.** `analyse-dev` and `confirm` rebuild the schedule from the logs and refuse when a scheduled call has no row or is still open (`analysis/report.completeness`). Before this, a stopped run could be analysed with its missing calls coded fail-closed.
+22. **Local faults.** A missing API key or SDK raises `engine.LocalFault` and stops the run; nothing is logged for the call, so it is never counted as a model failure.
+23. **Attempts logged as they end.** Every attempt is appended when it ends (`on_attempt`), so a killed run keeps the attempts already made and the four-attempt budget holds across resumes. `logs.append` starts a new line after a partial one.
+24. **Re-freezing.** Allowed, and recorded in `freeze_history.jsonl`, until the test split holds generation, twin, input or review rows; refused after. `confirm` also refuses test rows whose `config_sha256` differs from the frozen one.
+25. **What the freeze hashes.** Config (without the freeze block), the running `hp/` package and `study.py`, the prompts, the frozen artefacts and `<paths.inputs>/advisories`.
+26. **Leak-scan identity terms** are per model in the config (`identity_terms`), required as a non-empty list in live mode.
+27. **Bound convention.** One-sided bounds and p-values agree by construction (bound beyond b ⇔ p ≤ α); a resample with an undefined value counts against the claim in both.
+28. **Undefined rather than averaged around.** Pipeline risk: a generator row is undefined when an eligible CVE with near-misses has no U. Δ6: infeasible reviewers are left out and listed. D_diag: a block with an infeasible reviewer is undefined.
+29. **Several PoV tests.** Stage 1 requires one stable signature per PoV test (the earlier code required one signature across all of them).
+30. **Counts next to rates.** Every per-cell U, A, C in the development and test reports carries its unresolved trials per state and the pairs left out of C (with the share); totals per reviewer and overall. (The earlier docs said these were counted; they were counted in code but not reported.)
+31. **Container workspaces.** `ContainerVul4J` removes each workspace on release (contents first from inside the container, since they may be root-owned), keeps one source-only checkout per (CVE, version) for file reads, and caches `vul4j info`.
 

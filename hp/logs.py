@@ -129,7 +129,14 @@ def append(log_path, rows):
     p = pathlib.Path(log_path)
     p.parent.mkdir(parents=True, exist_ok=True)
     with _LOCK:
+        needs_newline = False
+        if p.exists() and p.stat().st_size:
+            with open(p, "rb") as fh:
+                fh.seek(-1, 2)
+                needs_newline = fh.read(1) != b"\n"
         with open(p, "a") as fh:
+            if needs_newline:
+                fh.write("\n")  # a killed run left a partial line; do not glue onto it
             for r in rows:
                 fh.write(json.dumps(r, sort_keys=True, default=str) + "\n")
             fh.flush()

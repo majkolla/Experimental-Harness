@@ -222,7 +222,9 @@ def _ollama(spec, prompt, cfg, contract=schema.LEGACY):
     from ollama import Client
 
     client = Client(host=spec.get("host"), timeout=cfg["timeout_s"])
-    options = {"temperature": cfg["temperature"], "num_predict": cfg["max_tokens"]}
+    options = {"num_predict": cfg["max_tokens"]}
+    if spec.get("send_temperature", True):
+        options["temperature"] = cfg["temperature"]
     if spec.get("send_top_p", True) and cfg.get("top_p") is not None:
         options["top_p"] = cfg["top_p"]
     if spec.get("num_ctx") is not None:
@@ -316,7 +318,10 @@ def call_once(spec, prompt, cfg, contract=None):
     except (KeyError, ImportError) as exc:
         # Missing API key, unknown provider, or an SDK that is not installed.
         # Our fault, not the provider's: retrying is guaranteed to fail again.
-        return _record(REQUEST_ERROR, None, None, {"error": repr(exc)}, started, contract)
+        # Flagged `local_fault` so the study dispatcher can stop instead of
+        # closing the call as a failure of the model.
+        return _record(REQUEST_ERROR, None, None, {"error": repr(exc), "local_fault": True},
+                       started, contract)
     except Exception as exc:  # noqa: BLE001 -- a failed call is data, not a crash
         return _record(_classify(exc), None, None, {"error": repr(exc)}, started, contract)
 
@@ -354,7 +359,7 @@ def _record(status, verdict, raw, meta, started, contract=None):
 
 
 def call_with_retries(spec, prompt, cfg, rng=None, contract=None, max_attempts=None,
-                      attempt_offset=0, sleep=time.sleep):
+                      attempt_offset=0, sleep=time.sleep, on_attempt=None):
     """Return the list of attempt records for one call_id.
 
     Every attempt is returned, not just the last, so the log carries the full
@@ -364,7 +369,9 @@ def call_with_retries(spec, prompt, cfg, rng=None, contract=None, max_attempts=N
     `max_attempts` and `attempt_offset` let a resumed run continue the attempt
     budget of a call across invocations (SPEC_ANSWERS Q1: four attempts in
     total, counted across resumes). By default they reproduce the legacy
-    behaviour exactly.
+    behaviour exactly. `on_attempt(record)` is called after every attempt, so a
+    caller can log each attempt the moment it ends (a killed run then loses no
+    attempt and the budget really is counted across resumes).
     """
     rng = rng or random.Random(0)
     budget = cfg["max_attempts"] if max_attempts is None else max_attempts
@@ -377,6 +384,8 @@ def call_with_retries(spec, prompt, cfg, rng=None, contract=None, max_attempts=N
         rec = call_once({**spec, "_attempt": attempt}, prompt, cfg, contract)
         rec["attempt"] = attempt
         out.append(rec)
+        if on_attempt is not None:
+            on_attempt(rec)
         if rec["status"] == OK or rec["status"] not in RETRYABLE:
             break
         if i < budget:

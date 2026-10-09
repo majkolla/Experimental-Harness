@@ -33,6 +33,7 @@ from . import extension as EXT
 from . import policies as POL
 from . import regret as RG
 from . import thresholds as T
+from . import rates as RT
 from .rates import Rates
 
 
@@ -111,7 +112,54 @@ def _bank_stats(cfg, rd, split_name):
 # ---------------------------------------------------------------------------
 
 
-def analyse_dev(cfg, rd, write=True):
+class IncompleteRun(RuntimeError):
+    """Scheduled calls are missing from the logs, or still open: refuse to analyse."""
+
+
+def completeness(cfg, rd, split_name):
+    """Compare the logs with the schedule rebuilt from the logs.
+
+    Every scheduled call of the core and extension blocks (and of Experiment B,
+    once it was started) must have rows and be closed: `ok`, four attempts, or a
+    non-retryable status. A call with no rows at all would otherwise be coded as
+    a rejection without being counted anywhere.
+    """
+    from .. import engine
+    from ..bank import assemble
+    from ..review import schedule
+
+    pairs = assemble.pairs(rd, split_name)
+    inp = logs.latest((r for r in logs.read(rd / logs.FILES["inputs"]) if r.get("split") == split_name),
+                      lambda r: (r["candidate_id"], r["packet"]))
+    excluded = {r["pair_id"] for r in inp.values() if r["packet"] is None and r["status"] != "ok"}
+    ok_pairs = [p for p in pairs if p["pair_id"] not in excluded]
+    blocks = ("core", "extension") if cfg["extension"]["enabled"] else ("core",)
+    expb = split_name == "development" and any(k[1] is not None for k in inp)
+    calls = schedule.build(cfg, ok_pairs, split_name, blocks=blocks, expb=expb)
+    calls = [c for c in calls if c["packet"] is None
+             or (inp.get((c["candidate_id"], c["packet"])) or {}).get("status") == "ok"]
+    log = rd / logs.FILES["reviews"]
+    counts, _, _ = engine.attempt_counts(log, "review")
+    closed = engine.closed_calls(log, "review", cfg["max_attempts"])
+    missing = [c["call_id"] for c in calls if c["call_id"] not in counts]
+    still_open = [c["call_id"] for c in calls if c["call_id"] in counts and c["call_id"] not in closed]
+    return {"split": split_name, "expected_calls": len(calls), "missing": len(missing),
+            "open": len(still_open), "examples": (missing + still_open)[:5],
+            "pairs_excluded_at_input": len(excluded), "experiment_b": expb}
+
+
+def require_complete(cfg, rd, split_name):
+    c = completeness(cfg, rd, split_name)
+    if c["missing"] or c["open"]:
+        raise IncompleteRun(
+            f"{split_name}: {c['missing']} scheduled call(s) have no log rows and {c['open']} are "
+            f"still open (e.g. {c['examples']}); finish `study.py review` before analysing"
+        )
+    return c
+
+
+def analyse_dev(cfg, rd, write=True, check=True):
+    completeness_dev = require_complete(cfg, rd, "development") if check else None
     target = cfg["acceptance_target"]
     ext = cfg["extension"]["enabled"]
     core = D.load(rd, "development", "core")
@@ -144,9 +192,8 @@ def analyse_dev(cfg, rd, write=True):
             if v:
                 v["exceeds_0.10"] = v["half_width"] > 0.10
 
-    dev_rates = {g: {r: {"U": rows[g].get((r, "V")), "A": rows[g].get((r, "F")),
-                         "C": rows[g].get(("C", r))} for r in S.CORE_REVIEWERS}
-                 for g in R.generators}
+    # U, A, C per cell with the unresolved trials and the pairs left out of C next to them
+    dev_rates = RT.cell_table(R, S.CORE_REVIEWERS)
     primary_choice = {
         "primary": rg["primary"], "choice": choice, "regret": rg,
         "promotion": promo, "rq2o_promoted": promoted,
@@ -164,11 +211,13 @@ def analyse_dev(cfg, rd, write=True):
         "rq2o_promotion": promo,
         "feasibility_half_widths": feas,
         "dev_rates_optimistic": dev_rates,
+        "c_exclusions": RT.c_exclusions(dev_rates),
         "row_level_acceptance": {r: T.row_acceptance(R, r, rows) for r in S.CORE_REVIEWERS},
         "experiment_b": XB.analyse(expb_view, core, thr, cfg["experiment_b"]["packets"], target),
         "data_quality": {"core": _dq(core, thr["reviewers"], cfg),
                          "core_bank": _dq(bank, thr["reviewers"], cfg) if ext else None},
         "bank": _bank_stats(cfg, rd, "development"),
+        "completeness": completeness_dev,
     }
     if write:
         _write(rd, "thresholds.json", thr)
@@ -194,6 +243,15 @@ def confirm(cfg, rd):
     if not ok:
         raise SplitLockError(f"the confirmatory analysis runs only on a frozen study ({reason})")
     thr, pc = _load_frozen(rd)
+    frozen_sha = cfg["freeze"]["config_sha256"]
+    stale = collections.Counter(
+        name for name in ("attempts", "reviews") for r in logs.read(rd / logs.FILES[name])
+        if r.get("split") == "test" and r.get("kind") in ("generation", "review")
+        and r.get("config_sha256") != frozen_sha)
+    if stale:
+        raise SplitLockError(
+            f"test-split rows were produced under another config than the frozen one: {dict(stale)}")
+    test_complete = require_complete(cfg, rd, "test")
     again = analyse_dev(cfg, rd, write=False)
     same = (canonical_json(_keys_to_str(again["thresholds"])) == canonical_json(thr)
             and canonical_json(_keys_to_str(again["primary_choice"])) == canonical_json(pc))
@@ -218,6 +276,7 @@ def confirm(cfg, rd):
         "artefacts_recomputed_identical": same,
         "core": core_out, "extension": ext_out, "inference": inference,
         "bank": _bank_stats(cfg, rd, "test"),
+        "completeness": test_complete,
     }
     _write(rd, "test_report.json", report)
     (rd / "test_report.txt").write_text(text_test(report))
@@ -233,9 +292,12 @@ def core_section(cfg, rd, thr, pc):
     Rc = CF.make_rates(core, thr)
     point, dist = CF.bootstrap(Rc, CF.contrasts(choice, primary), B, seed, "confirm|core")
     tp = thr.get("panel_cheap")
+    cells = RT.cell_table(Rc, S.CORE_REVIEWERS)
     out = {
         "estimates": CF.summarise(point, dist),
         "frame_clusters": len(Rc.clusters),
+        "cell_rates": cells,
+        "c_exclusions": RT.c_exclusions(cells),
         "rq3_common_mode": {
             "cheap_panel_primary": CM.panel_common_mode(
                 core, list(S.CHEAP_REVIEWERS), {m: tp for m in S.CHEAP_REVIEWERS},
@@ -251,7 +313,8 @@ def core_section(cfg, rd, thr, pc):
         "pipeline_risk_commercial": EXT.pipeline_risk(
             core, thr, choice, _near_misses(rd, "test", S.CORE_GENERATORS), _eligible(rd, "test"),
             list(S.CORE_GENERATORS),
-            ["fixed", "generator_aware", "exclusion", "strong_star", "cheap_star", "panel_cheap"]),
+            ["fixed", "generator_aware", "exclusion", "strong_star", "cheap_star", "panel_cheap"],
+            cfg["design"]["attempts_per_cell"]),
         "sensitivity": sensitivity(cfg, rd, core, thr, choice, primary),
         "data_quality": _dq(core, thr["reviewers"], cfg),
     }
@@ -272,7 +335,12 @@ def extension_section(cfg, rd, thr, pc):
     paid = cfg["extension"]["paid_block_on_test"]
     d6_view = allv if paid else D.load(rd, "development", "all_e0")
     nm = _near_misses(rd, "test", S.ALL_MODELS)
+    Rall = Rates(allv, dict(thr["reviewers"]), generators=list(S.CORE_GENERATORS + S.OPEN_MODELS),
+                 reviewers=list(S.ALL_MODELS))
+    cells = RT.cell_table(Rall, list(S.ALL_MODELS))
     out = {
+        "cell_rates_all_e0": cells,
+        "c_exclusions_all_e0": RT.c_exclusions(cells),
         "rq2o": CF.summarise(point_o, dist_o) if point_o else None,
         "rq6_delta6": {**EXT.delta6(d6_view, thr, B, seed, "delta6"),
                        "label": "test" if paid else "DEVELOPMENT ONLY (paid_block_on_test = false)"},
@@ -282,9 +350,11 @@ def extension_section(cfg, rd, thr, pc):
             list(S.CORE_GENERATORS)) if thr.get("panel_open") is not None else None,
         "pipeline_risk_open": EXT.pipeline_risk(
             allv, thr, choice, nm, _eligible(rd, "test"), list(S.OPEN_MODELS),
-            ["fixed", "exclusion", "strong_star", "cheap_star", "panel_cheap", "panel_open"]),
+            ["fixed", "exclusion", "strong_star", "cheap_star", "panel_cheap", "panel_open"],
+            cfg["design"]["attempts_per_cell"]),
         "pipeline_risk_commercial_open_panel": EXT.pipeline_risk(
-            bank, thr, choice, nm, _eligible(rd, "test"), list(S.CORE_GENERATORS), ["panel_open"]),
+            bank, thr, choice, nm, _eligible(rd, "test"), list(S.CORE_GENERATORS), ["panel_open"],
+            cfg["design"]["attempts_per_cell"]),
         "data_quality": _dq(D.load(rd, "test", "extension"), thr["reviewers"], cfg),
     }
     return out, point_o, dist_o
@@ -394,9 +464,26 @@ def text_dev(rep):
         for k, v in rep["feasibility_half_widths"].items():
             L.append(f"  {k:<28} {_f(v and v['half_width'])}"
                      f"{'  EXCEEDS 0.10: claim limited' if v and v['exceeds_0.10'] else ''}")
+    L.append("")
+    L += _cell_lines(rep["dev_rates_optimistic"], rep["c_exclusions"], "development, optimistic")
     L.append("\nunresolved trials (fail-closed) by reviewer/state:")
     L.append("  " + str(rep["data_quality"]["core"]["unresolved_trials_by_reviewer_state"]))
     return "\n".join(L) + "\n"
+
+
+def _cell_lines(cells, excl, label):
+    """U, A, C per cell with unresolved trials (fail-closed) and pairs left out of C."""
+    L = [f"per cell ({label}): U [unresolved V/trials]  A [unresolved F/trials]  "
+         f"C [pairs left out of C/pairs]"]
+    for g, row in cells.items():
+        for r, c in row.items():
+            L.append(f"  {g}->{r:<3} U={_f(c['U'])} [{c['unresolved_V']}/{c['trials_V']}]  "
+                     f"A={_f(c['A'])} [{c['unresolved_F']}/{c['trials_F']}]  "
+                     f"C={_f(c['C'])} [{c['C_excluded_pairs']}/{c['pairs']}]")
+    o = excl["overall"]
+    L.append(f"  pairs left out of C (no valid trial on one side): {o['excluded_pairs']} of "
+             f"{o['pairs']} reviewer-pairs ({_f(o['share'])})")
+    return L
 
 
 def text_test(rep):
@@ -413,6 +500,8 @@ def text_test(rep):
     L.append(f"\nHolm family {inf['family']} at one-sided {inf['alpha_one_sided']}:")
     for h, d in inf["hypotheses"].items():
         L.append(f"  {h}: p={_f(d['p'], 4)} p_holm={_f(d['p_holm'], 4)} -> {d['decision']}")
+    L.append("")
+    L += _cell_lines(rep["core"]["cell_rates"], rep["core"]["c_exclusions"], "test, core")
     cm = rep["core"]["rq3_common_mode"]["cheap_panel_primary"]
     if cm:
         b = cm["benchmark"]

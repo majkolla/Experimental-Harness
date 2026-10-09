@@ -241,8 +241,9 @@ def test_config_hash_ignores_the_freeze_block(sdir):
     assert S.config_hash(a) != S.config_hash(b)
 
 
-def test_freeze_round_trip_and_every_way_to_break_it(tmp_path):
+def test_freeze_round_trip_and_every_way_to_break_it(tmp_path, monkeypatch):
     d = make_study_dir(tmp_path, with_code=True)
+    monkeypatch.setattr(S, "CODE_ROOT", d)  # hash the copy, so editing it is a code change
     cfg_path = d / "study.synthetic.jsonc"
     cfg = S.load(cfg_path)
     rd = S.runs_dir(cfg)
@@ -277,3 +278,45 @@ def test_freeze_detects_a_config_edit(tmp_path):
     cfg_path.write_text(text)
     with pytest.raises(ConfigError, match="config changed since freeze"):
         S.load(cfg_path)
+
+
+def test_the_code_hash_covers_the_running_package_not_the_config_folder(tmp_path):
+    d = make_study_dir(tmp_path)  # no hp/ next to this config
+    assert any(rel.startswith("hp/") for _, rel in S.code_files(d))
+    assert S.CODE_ROOT == ROOT
+
+
+def test_freezing_again_after_test_split_work_is_refused(tmp_path):
+    d = make_study_dir(tmp_path, with_code=True)
+    cfg_path = d / "study.synthetic.jsonc"
+    rd = S.runs_dir(S.load(cfg_path))
+    rd.mkdir(parents=True)
+    S.freeze(cfg_path, [])
+    S.freeze(cfg_path, [])  # no test work yet: allowed, and recorded in the history
+    assert len((rd / "freeze_history.jsonl").read_text().splitlines()) == 2
+    (rd / "reviews.jsonl").write_text(json.dumps({"kind": "review", "split": "test"}) + "\n")
+    with pytest.raises(ConfigError, match="already hold test-split work"):
+        S.freeze(cfg_path, [])
+
+
+def test_edited_advisories_break_the_freeze(tmp_path):
+    d = make_study_dir(tmp_path, with_code=True)
+    cfg_path = d / "study.synthetic.jsonc"
+    cfg = S.load(cfg_path)
+    adv = cfg["_root"] / cfg["paths"]["inputs"] / "advisories"
+    adv.mkdir(parents=True)
+    (adv / "VUL4J-2.json").write_text('{"cwe": "CWE-22", "summary": "x"}')
+    S.runs_dir(cfg).mkdir(parents=True, exist_ok=True)
+    S.freeze(cfg_path, [])
+    S.load(cfg_path)
+    (adv / "VUL4J-2.json").write_text('{"cwe": "CWE-22", "summary": "edited"}')
+    with pytest.raises(ConfigError, match="advisories"):
+        S.load(cfg_path)
+
+
+def test_live_mode_requires_identity_terms_for_the_leak_scan(sdir):
+    p = _live_pinned(sdir)
+    edit(p, lambda o: o["models"]["c"].__setitem__("identity_terms", []))
+    with pytest.raises(ConfigError, match="identity_terms must be a non-empty list"):
+        S.load(p)
+

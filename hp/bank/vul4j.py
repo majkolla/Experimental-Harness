@@ -28,6 +28,7 @@ stack frame inside the PoV test class); see PLAN.md section 10 item 14.
 
 import json
 import pathlib
+import shutil
 import re
 import subprocess
 import time
@@ -261,6 +262,15 @@ class MockVul4J:
     def release(self, handle):
         pass
 
+    def close(self):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
 
 # ---------------------------------------------------------------------------
 # container (real Vul4J); not exercised offline
@@ -282,6 +292,8 @@ class ContainerVul4J:
         self.cli = v.get("cli", "vul4j")
         self.workdir = pathlib.Path(v.get("workdir", "/tmp/vul4j"))
         self.run = run or self._run
+        self._meta_cache = {}   # cve -> parsed `vul4j info`
+        self._refs = {}         # (cve, version) -> read-only checkout kept for read_files / list_files
 
     def describe(self):
         return {"runner": self.name, "image_digest": self.image}
@@ -294,13 +306,27 @@ class ContainerVul4J:
     def _docker(self, ws, *cmd):
         return ["docker", "run", "--rm", "--network", "none", "-v", f"{ws}:/ws", self.image, *cmd]
 
+    def _remove(self, ws):
+        """Delete a workspace. Files written inside the container may be root-owned, so
+        the contents are removed from inside the container first."""
+        ws = pathlib.Path(ws)
+        if not ws.exists():
+            return
+        self.run(self._docker(ws, "sh", "-c", "rm -rf /ws/* /ws/.[!.]*"))
+        shutil.rmtree(ws, ignore_errors=True)
+
     def _meta(self, cve):
-        ws = self.workdir / f"{cve}-meta"
-        ws.mkdir(parents=True, exist_ok=True)
-        code, out, err = self.run(self._docker(ws, self.cli, "info", "--id", cve))
-        if code:
-            raise RuntimeError(f"vul4j info {cve} failed: {err.strip()}")
-        return json.loads(out)
+        if cve not in self._meta_cache:
+            ws = self.workdir / f"{cve}-meta-{uuid.uuid4().hex[:8]}"
+            ws.mkdir(parents=True, exist_ok=True)
+            try:
+                code, out, err = self.run(self._docker(ws, self.cli, "info", "--id", cve))
+            finally:
+                self._remove(ws)
+            if code:
+                raise RuntimeError(f"vul4j info {cve} failed: {err.strip()}")
+            self._meta_cache[cve] = json.loads(out)
+        return self._meta_cache[cve]
 
     def human_files(self, cve):
         return list(self._meta(cve).get("human_patch_files", []))
@@ -324,8 +350,26 @@ class ContainerVul4J:
                 "allowed_project_tokens": m.get("allowed_project_tokens", [])}
 
     def prepare(self, cve, version="vulnerable", diff=None):
+        """Fresh workspace per call; removed by `release` (or here, if preparing fails)."""
         ws = self.workdir / f"{cve}-{version}-{uuid.uuid4().hex[:8]}"
         ws.mkdir(parents=True, exist_ok=True)
+        try:
+            self._checkout(ws, cve, version)
+            if diff is not None:
+                (ws / "candidate.diff").write_text(diff)
+                code, _, err = self.run(self._docker(ws, "git", "-C", "/ws/src", "apply",
+                                                     "/ws/candidate.diff"))
+                if code:
+                    raise ApplyError(err.strip())
+            code, _, err = self.run(self._docker(ws, self.cli, "compile", "-d", "/ws/src"))
+            if code:
+                raise BuildError(err.strip())
+        except BaseException:
+            self._remove(ws)
+            raise
+        return Handle(cve, version if diff is None else "patched", diff, ws=ws)
+
+    def _checkout(self, ws, cve, version):
         code, _, err = self.run(self._docker(ws, self.cli, "checkout", "--id", cve, "-d", "/ws/src"))
         if code:
             raise BuildError(f"checkout failed: {err.strip()}")
@@ -334,15 +378,20 @@ class ContainerVul4J:
                                                  "-d", "/ws/src"))
             if code:
                 raise ApplyError(f"human patch failed: {err.strip()}")
-        if diff is not None:
-            (ws / "candidate.diff").write_text(diff)
-            code, _, err = self.run(self._docker(ws, "git", "-C", "/ws/src", "apply", "/ws/candidate.diff"))
-            if code:
-                raise ApplyError(err.strip())
-        code, _, err = self.run(self._docker(ws, self.cli, "compile", "-d", "/ws/src"))
-        if code:
-            raise BuildError(err.strip())
-        return Handle(cve, version if diff is None else "patched", diff, ws=ws)
+
+    def _reference(self, cve, version):
+        """Source-only checkout reused by read_files / list_files (no build, no tests)."""
+        key = (cve, version)
+        if key not in self._refs:
+            ws = self.workdir / f"{cve}-{version}-ref-{uuid.uuid4().hex[:8]}"
+            ws.mkdir(parents=True, exist_ok=True)
+            try:
+                self._checkout(ws, cve, version)
+            except BaseException:
+                self._remove(ws)
+                raise
+            self._refs[key] = ws
+        return self._refs[key]
 
     def run_tests(self, handle, scope="full", tests=None):
         ws = handle.extra["ws"]
@@ -363,12 +412,11 @@ class ContainerVul4J:
         return SuiteRun(True, results, wall, scope)
 
     def read_files(self, cve, paths, version="vulnerable"):
-        h = self.prepare(cve, version)
-        return self.patched_files(h, paths)
+        root = self._reference(cve, version) / "src"
+        return {p: (root / p).read_text() for p in paths if (root / p).is_file()}
 
     def list_files(self, cve, version="vulnerable"):
-        h = self.prepare(cve, version)
-        root = h.extra["ws"] / "src"
+        root = self._reference(cve, version) / "src"
         return sorted(p.relative_to(root).as_posix() for p in root.rglob("*.java"))
 
     def patched_files(self, handle, paths):
@@ -376,7 +424,21 @@ class ContainerVul4J:
         return {p: (root / p).read_text() for p in paths if (root / p).is_file()}
 
     def release(self, handle):
-        pass
+        ws = handle.extra.pop("ws", None)
+        if ws is not None:
+            self._remove(ws)
+
+    def close(self):
+        """Remove the cached reference checkouts."""
+        for ws in self._refs.values():
+            self._remove(ws)
+        self._refs.clear()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
 
 
 def runner_for(cfg):

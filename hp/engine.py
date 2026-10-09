@@ -35,6 +35,10 @@ from .runner import eligible_order
 from .schema import OK, RETRYABLE
 
 
+class LocalFault(RuntimeError):
+    """A missing API key or SDK: our configuration, not the model. Stops the run."""
+
+
 def call_settings(cfg, kind):
     s, c, t = cfg["sampling"], cfg["caps"], cfg["timeouts_s"]
     if kind == "generation":
@@ -127,11 +131,32 @@ def run_calls(cfg, calls, log_path, row_kind, contract, make_prompt, make_row,
             spec.update(_world=world, _context=call["_context"], _ref=ref)
         prompt, input_sha = make_prompt(call)
         done = counts[call["call_id"]]
+        want = cfg["models"][ref].get("snapshot") or cfg["models"][ref]["model"]
+
+        def log_attempt(rec):
+            # Written the moment the attempt ends: nothing is lost if the run is
+            # killed, and the four-attempt budget holds across resumes.
+            if rec.get("local_fault"):
+                raise LocalFault(
+                    f"{ref}: {rec.get('error')} -- a local configuration fault (missing key or "
+                    "SDK), not a model failure; nothing was logged for this call"
+                )
+            primary, sens = cost_of(cfg, ref, rec)
+            logs.append(log_path, [make_row(call, rec, {
+                "input_sha": input_sha, "cost": primary, "cost_sensitivity": sens,
+                "seed": call_seed(cfg, call["call_id"])})])
+            got = rec.get("served_model")
+            if rec["status"] == OK and got and got != want:
+                raise providers.PinViolation(
+                    f"{ref}: pinned {want!r} but the provider served {got!r}; "
+                    "the subject of the experiment changed mid-run, stopping"
+                )
+
         kwargs = {"sleep": sleep} if sleep else {}
-        recs = providers.call_with_retries(
+        return providers.call_with_retries(
             spec, prompt, settings, rng=random.Random(call_seed(cfg, call["call_id"])),
-            contract=contract, max_attempts=max_att - done, attempt_offset=done, **kwargs)
-        return recs, input_sha
+            contract=contract, max_attempts=max_att - done, attempt_offset=done,
+            on_attempt=log_attempt, **kwargs)
 
     workers = max(1, int(cfg["workers"]))
     queue = list(pending)
@@ -148,25 +173,11 @@ def run_calls(cfg, calls, log_path, row_kind, contract, make_prompt, make_row,
             for fut in done:
                 call = inflight.pop(fut)
                 busy[call["panel_key"]] -= 1
-                recs, input_sha = fut.result()  # PinViolation propagates and stops the run
-                rows = []
-                for rec in recs:
-                    primary, sens = cost_of(cfg, call["model_ref"], rec)
-                    rows.append(make_row(call, rec, {"input_sha": input_sha, "cost": primary,
-                                                     "cost_sensitivity": sens,
-                                                     "seed": call_seed(cfg, call["call_id"])}))
-                logs.append(log_path, rows)
-                final = recs[-1]
-                spec = cfg["models"][call["model_ref"]]
-                want = spec.get("snapshot") or spec["model"]
-                got = final.get("served_model")
-                if final["status"] == OK and got and got != want:
-                    raise providers.PinViolation(
-                        f"{call['model_ref']}: pinned {want!r} but the provider served {got!r}; "
-                        "the subject of the experiment changed mid-run, stopping"
-                    )
+                # A PinViolation or LocalFault propagates and stops the run; calls
+                # already in flight finish (their attempts are logged as they end).
+                recs = fut.result()
                 if on_progress:
-                    on_progress(call, final)
+                    on_progress(call, recs[-1])
     openweight.verify_all(open_specs)  # end of run
     return _finish(summary, calls, log_path, row_kind, max_att)
 

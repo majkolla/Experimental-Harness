@@ -169,6 +169,9 @@ def disagreement(view, thresholds):
     """Per reviewer: share of ok, non-abstain calls whose verdict and threshold disagree (Q3)."""
     out = {}
     for r in view.reviewers:
+        if thresholds.get(r) is None:
+            out[r] = {"calls": None, "disagree": None, "rate": None, "note": "infeasible: no threshold"}
+            continue
         n = d = 0
         for (pid, state, rev, pk), trials in view.obs.items():
             if rev != r or pk is not None:

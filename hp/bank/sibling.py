@@ -46,16 +46,18 @@ def validate(runner, cve, f_diff, repro_row, reruns):
         return False, {"stage": "apply", "error": str(exc)[:200]}
     except BuildError as exc:
         return False, {"stage": "build", "error": str(exc)[:200]}
-    ordinary, pov = repro_row["ordinary_tests"], repro_row["pov_tests"]
-    screen = runner.run_tests(h, scope="full")
-    if not screen.completed or any(screen.outcome(t) != "pass" for t in ordinary):
-        return False, {"stage": "screening", "completed": screen.completed}
-    runs = []
-    for i in range(1, reruns + 1):
-        r = runner.run_tests(h, scope="full")
-        ok = r.completed and all(r.outcome(t) == "pass" for t in ordinary + pov)
-        runs.append(ok)
-    runner.release(h)
+    try:
+        ordinary, pov = repro_row["ordinary_tests"], repro_row["pov_tests"]
+        screen = runner.run_tests(h, scope="full")
+        if not screen.completed or any(screen.outcome(t) != "pass" for t in ordinary):
+            return False, {"stage": "screening", "completed": screen.completed}
+        runs = []
+        for i in range(1, reruns + 1):
+            r = runner.run_tests(h, scope="full")
+            ok = r.completed and all(r.outcome(t) == "pass" for t in ordinary + pov)
+            runs.append(ok)
+    finally:
+        runner.release(h)
     return all(runs), {"stage": "reruns", "passed": sum(runs), "of": reruns}
 
 

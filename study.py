@@ -46,7 +46,6 @@ def cmd_timing_pilot(a):
     from hp.bank import reproduce, vul4j
 
     cfg, rd = _cfg(a)
-    runner = vul4j.runner_for(cfg)
     from hp.bank.split import load_split
 
     cves = [c.strip() for c in a.cves.split(",") if c.strip()]
@@ -54,8 +53,9 @@ def cmd_timing_pilot(a):
     unknown = [c for c in cves if c not in known]
     if unknown:
         raise SystemExit(f"not in the active split: {unknown} (synthetic runs use a subset)")
-    rows = reproduce.timing_pilot(runner, cves, a.runs, cfg["design"]["reruns"],
-                                  scope=a.scope or cfg["stage1"]["suite_scope"])
+    with vul4j.runner_for(cfg) as runner:
+        rows = reproduce.timing_pilot(runner, cves, a.runs, cfg["design"]["reruns"],
+                                      scope=a.scope or cfg["stage1"]["suite_scope"])
     print(f"{'cve':<10}{'version':<12}{'build_s':>9}{'mean_run_s':>12}{'stage1_s':>11}  runs")
     for r in rows:
         print(f"{r['cve']:<10}{r['version']:<12}{r['build_s']:>9}{r.get('mean_run_s', 'n/a'):>12}"
@@ -69,8 +69,8 @@ def cmd_reproduce(a):
     from hp.bank import reproduce, vul4j
 
     cfg, rd = _cfg(a)
-    rows = reproduce.run(cfg, vul4j.runner_for(cfg), rd,
-                         cves=a.cves.split(",") if a.cves else None)
+    with vul4j.runner_for(cfg) as runner:
+        rows = reproduce.run(cfg, runner, rd, cves=a.cves.split(",") if a.cves else None)
     print(f"reproduced {len(rows)} CVEs: {dict(Counter(r['status'] for r in rows))}")
 
 
@@ -78,7 +78,8 @@ def cmd_generate(a):
     from hp.bank import generate, vul4j
 
     cfg, rd = _cfg(a)
-    print(generate.run(cfg, vul4j.runner_for(cfg), a.split, rd / logs.FILES["attempts"]))
+    with vul4j.runner_for(cfg) as runner:
+        print(generate.run(cfg, runner, a.split, rd / logs.FILES["attempts"]))
 
 
 def cmd_classify(a):
@@ -87,7 +88,8 @@ def cmd_classify(a):
     from hp.bank import classify, vul4j
 
     cfg, rd = _cfg(a)
-    rows = classify.run(cfg, vul4j.runner_for(cfg), a.split, rd)
+    with vul4j.runner_for(cfg) as runner:
+        rows = classify.run(cfg, runner, a.split, rd)
     print(f"classified {len(rows)} attempts: {dict(Counter(r['class'] for r in rows))}")
 
 
@@ -105,7 +107,8 @@ def cmd_sibling(a):
     from hp.bank import sibling, vul4j
 
     cfg, rd = _cfg(a)
-    rows = sibling.run(cfg, vul4j.runner_for(cfg), a.split, rd)
+    with vul4j.runner_for(cfg) as runner:
+        rows = sibling.run(cfg, runner, a.split, rd)
     print(dict(Counter(r.get("status") or r["kind"] for r in rows)))
 
 
@@ -128,7 +131,8 @@ def cmd_review(a):
     blocks = tuple(b for b in a.blocks.split(",") if b)
     if not cfg["extension"]["enabled"]:
         blocks = tuple(b for b in blocks if b != "extension")
-    s = dispatch.run(cfg, vul4j.runner_for(cfg), a.split, rd, blocks=blocks, expb=a.expb)
+    with vul4j.runner_for(cfg) as runner:
+        s = dispatch.run(cfg, runner, a.split, rd, blocks=blocks, expb=a.expb)
     print({k: v for k, v in s.items() if k != "excluded_pairs"})
     if s["excluded_pairs"]:
         print(f"excluded pairs (V and F together): {s['excluded_pairs']}")

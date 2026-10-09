@@ -3,6 +3,7 @@
 import collections
 import inspect
 import json
+import pathlib
 
 import pytest
 
@@ -289,3 +290,60 @@ def test_container_runner_composes_pinned_offline_commands(tmp_path):
     assert any(c.startswith("vul4j compile") for c in cmds)
     assert cmds[-1] == "vul4j test -d /ws/src --tests p.T#pov"
     assert run.completed is False  # no surefire reports were produced by the fake
+
+
+def _fake_docker(seen, fail_on=None, info=None):
+    def fake(argv, timeout=None):
+        seen.append(argv)
+        cmd = " ".join(argv[argv.index("img@sha256:" + "ab" * 32) + 1:])
+        if fail_on and cmd.startswith(fail_on):
+            return 1, "", "boom"
+        if cmd.startswith("vul4j info"):
+            return 0, json.dumps(info or {"human_patch_files": ["src/main/java/p/H.java"]}), ""
+        if cmd.startswith("vul4j checkout"):
+            ws = pathlib.Path(argv[argv.index("-v") + 1].split(":")[0])
+            f = ws / "src" / "src" / "main" / "java" / "p" / "H.java"
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text("class H {}\n")
+        return 0, "", ""
+    return fake
+
+
+def _container(tmp_path, fake):
+    cfg = {"vul4j": {"image": "img", "image_digest": "sha256:" + "ab" * 32, "cli": "vul4j",
+                     "workdir": str(tmp_path / "w")}}
+    return vul4j.ContainerVul4J(cfg, run=fake)
+
+
+def test_container_runner_removes_workspaces(tmp_path):
+    """Review finding 13: every prepared workspace is removed on release, and a failed
+    prepare leaves nothing behind."""
+    seen = []
+    r = _container(tmp_path, _fake_docker(seen))
+    h = r.prepare("VUL4J-1", "vulnerable")
+    ws = h.extra["ws"]
+    assert ws.is_dir()
+    r.release(h)
+    assert not ws.exists()
+
+    r = _container(tmp_path, _fake_docker(seen, fail_on="vul4j compile"))
+    with pytest.raises(vul4j.BuildError):
+        r.prepare("VUL4J-1", "vulnerable")
+    assert list((tmp_path / "w").iterdir()) == []
+
+
+def test_container_runner_caches_reference_checkouts_and_metadata(tmp_path):
+    seen = []
+    with _container(tmp_path, _fake_docker(seen)) as r:
+        for _ in range(3):
+            assert r.read_files("VUL4J-1", ["src/main/java/p/H.java"]) == \
+                {"src/main/java/p/H.java": "class H {}\n"}
+        assert r.list_files("VUL4J-1") == ["src/main/java/p/H.java"]
+        for _ in range(3):
+            assert r.human_files("VUL4J-1") == ["src/main/java/p/H.java"]
+        cmds = [" ".join(a[a.index("img@sha256:" + "ab" * 32) + 1:]) for a in seen]
+        assert sum(c.startswith("vul4j checkout") for c in cmds) == 1
+        assert sum(c.startswith("vul4j compile") for c in cmds) == 0   # source only
+        assert sum(c.startswith("vul4j info") for c in cmds) == 1
+        assert len(list((tmp_path / "w").iterdir())) == 1              # the kept reference
+    assert list((tmp_path / "w").iterdir()) == []                      # closed

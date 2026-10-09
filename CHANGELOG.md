@@ -24,7 +24,7 @@ map, invariants, provisional items and placeholders: `docs/study.html`.
   common mode, confirmatory inference with Holm, extension analyses, Experiment B,
   reports); `study.py analyse-dev | freeze | confirm | selftest`.
 - **Logs** (WP6): row schemas for every log, `audit-logs`, recompute-from-logs check.
-- **Tests** (WP7): 239 new tests under `tests/study/` (318 in total), including the
+- **Tests** (WP7): new tests under `tests/study/`, including the
   section 18.4 tests, bit-identity of the core analysis with and without the
   extension, and an offline end-to-end run with nine synthetic models.
 - **Docs** (WP8): `docs/study.html`, README section, this changelog.
@@ -38,6 +38,20 @@ map, invariants, provisional items and placeholders: `docs/study.html`.
 - Legacy modules carry a LEGACY / SHARED banner; `experiment*.json` carry
   `"mode": "legacy_exp1"` (ignored by the legacy loader; config hash unchanged).
 - `HARNESS_VERSION` 0.2.0 -> 0.3.0.
+
+### Fixed after the independent review (PLAN.md section 10, items 21-31)
+- Analysis refuses runs with missing or open calls; `confirm` refuses test rows made
+  under another config; re-freezing is refused once the test split holds work.
+- Missing keys or SDKs stop the run (`LocalFault`) instead of being logged as failures.
+- Attempts are logged as they end; appends after a partial line start a new line.
+- The code hash covers the running package; the freeze also hashes the advisories;
+  `identity_terms` per model are required in live mode.
+- One-sided bounds agree with the p-values; undefined resamples count against a claim.
+- Pipeline risk and Delta6 no longer average around missing cells.
+- Stage 1 checks one stable signature per PoV test.
+- Reports print unresolved trials and pairs left out of C next to every per-cell rate.
+- `ContainerVul4J` removes its workspaces and reuses one checkout per CVE for reads.
+- Test count: 355 (79 legacy + 276 new).
 
 ### Not changed
 - Experiment 1 behaviour and its 79 tests.

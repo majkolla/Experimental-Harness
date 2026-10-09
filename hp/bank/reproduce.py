@@ -47,8 +47,10 @@ def reproduce_cve(runner, cve, cluster, split_name, reruns, scope="full"):
         except BuildError as exc:
             row.update(status="build_fail", reason=f"{version}: {exc}")
             return row
-        runs = [runner.run_tests(h, scope=scope) for _ in range(reruns)]
-        runner.release(h)
+        try:
+            runs = [runner.run_tests(h, scope=scope) for _ in range(reruns)]
+        finally:
+            runner.release(h)
         row["runs"][version] = [
             {"completed": r.completed, "wall_s": round(r.wall_s, 3),
              "pov": {t: r.outcome(t) for t in sorted(pov)}, "error": r.error}
@@ -59,9 +61,9 @@ def reproduce_cve(runner, cve, cluster, split_name, reruns, scope="full"):
 
     # the PoV: fails on vulnerable, passes on fixed, every run, one signature
     vul, fix = outcomes["vulnerable"], outcomes["fixed"]
-    sigs = set()
     pov_stable = bool(pov) and complete
     for t in pov:
+        sigs = set()  # one stable signature PER PoV test (a CVE may have several)
         for r in vul:
             if r.outcome(t) not in ("fail", "error"):
                 pov_stable = False
@@ -69,8 +71,8 @@ def reproduce_cve(runner, cve, cluster, split_name, reruns, scope="full"):
         for r in fix:
             if r.outcome(t) != "pass":
                 pov_stable = False
-    if len(sigs) != 1 or None in sigs:
-        pov_stable = False
+        if len(sigs) != 1 or None in sigs:
+            pov_stable = False
     if pov_stable:
         row["signature"] = {t: vul[0].signature(t) for t in sorted(pov)}
 
@@ -114,8 +116,10 @@ def timing_pilot(runner, cves, runs, reruns, scope="full"):
                              "error": str(exc), "run_wall_s": []})
                 continue
             build_s = time.time() - t0
-            walls = [round(runner.run_tests(h, scope=scope).wall_s, 3) for _ in range(runs)]
-            runner.release(h)
+            try:
+                walls = [round(runner.run_tests(h, scope=scope).wall_s, 3) for _ in range(runs)]
+            finally:
+                runner.release(h)
             rows.append({"cve": cve, "version": version, "build_s": round(build_s, 3),
                          "run_wall_s": walls, "mean_run_s": round(sum(walls) / len(walls), 3),
                          "projected_stage1_s": round(build_s + reruns * sum(walls) / len(walls), 3)})

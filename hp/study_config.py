@@ -188,21 +188,42 @@ def config_hash(cfg):
     return sha256_bytes(canonical(body))
 
 
+#: The code that is actually running: the parent of this `hp` package. The code
+#: hash covers it (not whatever `hp/` sits next to a config file), so a config
+#: kept outside the repository still freezes the code that executes.
+CODE_ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
 def code_files(root):
+    """Files whose hash freezes the study: the running hp/ package and study.py,
+    plus the prompt templates next to the config (`root`)."""
+    code = CODE_ROOT
+    files = [(p, p.relative_to(code).as_posix()) for p in (code / "hp").rglob("*.py")
+             if "__pycache__" not in p.parts]
+    if (code / "study.py").exists():
+        files.append((code / "study.py", "study.py"))
     root = pathlib.Path(root)
-    files = [p for p in (root / "hp").rglob("*.py") if "__pycache__" not in p.parts]
-    files += [p for p in (root / "prompts").rglob("*") if p.is_file()]
-    if (root / "study.py").exists():
-        files.append(root / "study.py")
-    return sorted(files, key=lambda p: p.relative_to(root).as_posix())
+    files += [(p, "prompts/" + p.relative_to(root / "prompts").as_posix())
+              for p in (root / "prompts").rglob("*") if p.is_file()]
+    return sorted(files, key=lambda x: x[1])
 
 
 def code_hash(root):
-    """SHA-256 over every analysis-relevant source file (hp/, prompts/, study.py)."""
-    root = pathlib.Path(root)
-    lines = [
-        f"{p.relative_to(root).as_posix()}\t{sha256_file(p)}\n" for p in code_files(root)
-    ]
+    """SHA-256 over every analysis-relevant source file (hp/, study.py, prompts/)."""
+    lines = [f"{rel}\t{sha256_file(p)}\n" for p, rel in code_files(root)]
+    return sha256_bytes("".join(lines).encode())
+
+
+def inputs_hash(cfg):
+    """SHA-256 over the author-written inputs (advisories, twins) under paths.inputs."""
+    base = cfg["_root"] / cfg["paths"]["inputs"]
+    lines = []
+    for sub in ("advisories",):
+        d = base / sub
+        if d.is_dir():
+            for p in sorted(d.rglob("*")):
+                if p.is_file():
+                    lines.append(f"{p.relative_to(base).as_posix()}\t{sha256_file(p)}\n")
     return sha256_bytes("".join(lines).encode())
 
 
@@ -297,6 +318,16 @@ def _check_models(cfg, problems):
             problems.append(f"models.{ref}: open-tier models are served by 'openweight'")
         if mode == "live" and TIER[ref] != "open" and prov == "openweight":
             problems.append(f"models.{ref}: API-tier models cannot use 'openweight'")
+
+        # generator identity (oracle isolation): the leak scan needs the names
+        terms = m.get("identity_terms")
+        if mode == "live" and terms != PLACEHOLDER and (
+                not isinstance(terms, list) or not terms
+                or not all(isinstance(x, str) and x.strip() for x in terms)):
+            problems.append(
+                f"models.{ref}.identity_terms must be a non-empty list of names (vendor, "
+                "family, product) that the leak scan refuses in review inputs"
+            )
 
         # Q16: omitting a sampling parameter is a recorded deviation, never silent
         for flag in ("send_temperature", "send_top_p"):
@@ -542,6 +573,8 @@ def freeze_status(cfg):
         p = runs_dir(cfg) / rel
         if not p.is_file() or sha256_file(p) != sha:
             return False, f"frozen artefact {rel} missing or changed"
+    if rec.get("inputs_sha256") != inputs_hash(cfg):
+        return False, "author-written inputs (advisories) changed since freeze"
     return True, "frozen"
 
 
@@ -629,6 +662,13 @@ def freeze(cfg_path, artefacts):
 
     cfg = load(cfg_path, require_valid_freeze=False)
     rd = runs_dir(cfg)
+    touched = _test_split_work(rd)
+    if touched:
+        raise ConfigError(
+            "cannot freeze: the logs already hold test-split work "
+            f"({', '.join(touched)}). Freezing again after test data exist would let "
+            "thresholds or policies be chosen after seeing them."
+        )
     rec = {
         "kind": "freeze",
         "config_path": cfg["_path"].name,
@@ -637,6 +677,7 @@ def freeze(cfg_path, artefacts):
         "artefacts": {},
         "frozen_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "mode": cfg["mode"],
+        "inputs_sha256": inputs_hash(cfg),
     }
     for rel in artefacts:
         p = rd / rel
@@ -645,6 +686,28 @@ def freeze(cfg_path, artefacts):
         rec["artefacts"][rel] = sha256_file(p)
     rd.mkdir(parents=True, exist_ok=True)
     (rd / "freeze.json").write_text(json.dumps(rec, indent=2, sort_keys=True) + "\n")
+    with open(rd / "freeze_history.jsonl", "a") as fh:  # every freeze ever made
+        fh.write(json.dumps(rec, sort_keys=True) + "\n")
     write_freeze_block(cfg_path, rec["config_sha256"], rec["code_sha256"])
     return rec
+
+
+def _test_split_work(rd):
+    """Which logs already contain test-split generation, twins, inputs or reviews."""
+    out = []
+    for name, kinds in (("attempts.jsonl", ("generation",)), ("siblings.jsonl", ("sibling",)),
+                        ("inputs.jsonl", ("review_input",)), ("reviews.jsonl", ("review",))):
+        p = pathlib.Path(rd) / name
+        if not p.exists():
+            continue
+        with open(p) as fh:
+            for line in fh:
+                try:
+                    r = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if r.get("split") == "test" and r.get("kind") in kinds:
+                    out.append(name)
+                    break
+    return out
 
