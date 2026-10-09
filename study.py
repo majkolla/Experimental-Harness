@@ -10,6 +10,10 @@
     python study.py sibling       study.jsonc --split development
     python study.py bank          study.jsonc --split development
     python study.py review        study.jsonc --split development [--expb] [--blocks core,extension]
+    python study.py analyse-dev   study.jsonc                 # thresholds, policies, regret, promotion
+    python study.py freeze        study.jsonc                 # opens the test split
+    python study.py confirm       study.jsonc                 # test-set inference and the report
+    python study.py selftest      [--full] [--dir DIR]        # whole pipeline offline, synthetic
 
 Every command validates the config first (a live config refuses to run while
 any pin is still a placeholder) and appends to the logs under `paths.runs`.
@@ -129,6 +133,76 @@ def cmd_review(a):
         print(f"excluded pairs (V and F together): {s['excluded_pairs']}")
 
 
+def cmd_analyse_dev(a):
+    from hp.analysis import report
+
+    cfg, rd = _cfg(a)
+    report.analyse_dev(cfg, rd)
+    print((rd / "dev_report.txt").read_text())
+
+
+def cmd_freeze(a):
+    rec = S.freeze(a.config, ["thresholds.json", "primary_choice.json"])
+    print(f"frozen: config {rec['config_sha256']}, code {rec['code_sha256']}")
+    for k, v in rec["artefacts"].items():
+        print(f"  {k}: {v}")
+
+
+def cmd_confirm(a):
+    from hp.analysis import report
+
+    cfg, rd = _cfg(a)
+    report.confirm(cfg, rd)
+    print((rd / "test_report.txt").read_text())
+
+
+def cmd_selftest(a):
+    import pathlib
+    import shutil
+    import tempfile
+
+    from hp import study_config
+    from hp.analysis import report
+    from hp.bank import classify, generate, reproduce, select, sibling, vul4j
+    from hp.review import dispatch
+
+    root = pathlib.Path(__file__).resolve().parent
+    d = pathlib.Path(a.dir or tempfile.mkdtemp(prefix="study-selftest-"))
+    d.mkdir(parents=True, exist_ok=True)
+    for name in ("study.synthetic.jsonc", "study.py"):
+        shutil.copy(root / name, d / name)
+    for name in ("prompts", "hp"):
+        shutil.copytree(root / name, d / name, dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns("__pycache__"))
+    (d / "docs" / "spec").mkdir(parents=True, exist_ok=True)
+    shutil.copy(root / "docs" / "spec" / "proposed_split.json", d / "docs" / "spec")
+    cfg_path = d / "study.synthetic.jsonc"
+    if a.full:
+        text = cfg_path.read_text().replace(
+            '"cve_limit": {"development": 8, "test": 12}', '"cve_limit": null')
+        cfg_path.write_text(text)
+    cfg = study_config.load(cfg_path)
+    rd = study_config.runs_dir(cfg)
+    rd.mkdir(parents=True, exist_ok=True)
+    runner = vul4j.runner_for(cfg)
+    reproduce.run(cfg, runner, rd)
+    for split_name in ("development", "test"):
+        if split_name == "test":
+            report.analyse_dev(cfg, rd)
+            study_config.freeze(cfg_path, ["thresholds.json", "primary_choice.json"])
+            cfg = study_config.load(cfg_path)
+            runner = vul4j.runner_for(cfg)
+        generate.run(cfg, runner, split_name, rd / logs.FILES["attempts"])
+        classify.run(cfg, runner, split_name, rd)
+        select.run(cfg, split_name, rd)
+        sibling.run(cfg, runner, split_name, rd)
+        dispatch.run(cfg, runner, split_name, rd, expb=(split_name == "development"))
+    report.confirm(cfg, rd)
+    print((rd / "dev_report.txt").read_text())
+    print((rd / "test_report.txt").read_text())
+    print(f"self-test directory: {d}")
+
+
 COMMANDS = {
     "validate": cmd_validate,
     "timing-pilot": cmd_timing_pilot,
@@ -139,6 +213,10 @@ COMMANDS = {
     "sibling": cmd_sibling,
     "bank": cmd_bank,
     "review": cmd_review,
+    "analyse-dev": cmd_analyse_dev,
+    "freeze": cmd_freeze,
+    "confirm": cmd_confirm,
+    "selftest": cmd_selftest,
 }
 
 
@@ -147,6 +225,10 @@ def parser():
     sub = ap.add_subparsers(dest="command", required=True)
     for name in COMMANDS:
         p = sub.add_parser(name)
+        if name == "selftest":
+            p.add_argument("--full", action="store_true", help="every CVE of the split")
+            p.add_argument("--dir", default=None, help="where to run (default: a new temp dir)")
+            continue
         p.add_argument("config")
         if name in ("generate", "classify", "select", "sibling", "bank", "review"):
             p.add_argument("--split", choices=("development", "test"), required=True)

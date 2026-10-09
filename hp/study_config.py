@@ -601,22 +601,20 @@ def load(cfg_path, require_valid_freeze=True):
     return cfg
 
 
-_FREEZE_LINE = re.compile(r'^(\s*)"freeze"\s*:\s*\{[^\n]*\}(\s*,?)(\s*//[^\n]*)?$', re.M)
+_FREEZE_BLOCK = re.compile(r'"freeze"\s*:\s*\{[^{}]*\}', re.S)
 
 
 def write_freeze_block(cfg_path, config_sha, code_sha):
-    """Rewrite the one-line freeze block of a config file in place."""
+    """Rewrite the freeze block of a config file in place (comments elsewhere kept)."""
     p = pathlib.Path(cfg_path)
     text = p.read_text()
-    m = list(_FREEZE_LINE.finditer(text))
+    m = list(_FREEZE_BLOCK.finditer(text))
     if len(m) != 1:
-        raise ConfigError("the freeze block must sit on exactly one line of the config")
-    m = m[0]
+        raise ConfigError("the config must contain exactly one freeze block")
     block = json.dumps(
         {"frozen": True, "config_sha256": config_sha, "code_sha256": code_sha}
     )
-    new = f'{m.group(1)}"freeze": {block}{m.group(2)}{m.group(3) or ""}'
-    p.write_text(text[: m.start()] + new + text[m.end() :])
+    p.write_text(text[: m[0].start()] + f'"freeze": {block}' + text[m[0].end() :])
 
 
 def freeze(cfg_path, artefacts):

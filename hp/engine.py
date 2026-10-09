@@ -113,6 +113,8 @@ def run_calls(cfg, calls, log_path, row_kind, contract, make_prompt, make_row,
         return _finish(summary, calls, log_path, row_kind, max_att)
 
     settings = call_settings(cfg, settings_kind)
+    if sleep is None and cfg.get("mode") == "synthetic":
+        sleep = lambda s: None  # noqa: E731 -- synthetic backends cannot be rate-limited
     used = sorted({c["model_ref"] for c in pending})
     open_specs = [cfg["models"][r] for r in used if cfg["models"][r]["provider"] == "openweight"]
     openweight.verify_all(open_specs)  # start of run

@@ -96,3 +96,42 @@ def build_bank(cfg, split_name="development"):
     select.run(cfg, split_name, rd)
     sibling.run(cfg, runner, split_name, rd)
     return runner
+
+
+def make_view(pairs, trials, split="test", view="core"):
+    """A hand-built analysis View.
+
+    pairs: [(pair_id, cve, cluster, generator)]
+    trials: {(pair_id, state, reviewer): [(status, verdict, risk) x 3]} -- or a
+            callable (pair_id, state, reviewer) -> that list, applied to every
+            (pair, state, reviewer) of `reviewers` given as trials["_reviewers"].
+    """
+    from hp.analysis import data as D
+
+    pmap = {pid: {"pair_id": pid, "cve": cve, "cluster": cl, "generator": g, "cwe": None,
+                  "similarity": None, "patch_size": None, "method": "author"}
+            for pid, cve, cl, g in pairs}
+    obs, cost = {}, {}
+    if callable(trials.get("_fn")):
+        items = {(pid, s, r): trials["_fn"](pid, s, r)
+                 for pid in pmap for s in ("V", "F") for r in trials["_reviewers"]}
+    else:
+        items = trials
+    import collections
+
+    unresolved = collections.Counter()
+    for (pid, s, r), ts in items.items():
+        lst = []
+        for status, verdict, risk in ts:
+            lst.append(D.Trial(status, verdict, risk, cost=1.0, attempts=1))
+            if status != "ok":
+                unresolved[(r, s)] += 1
+        obs[(pid, s, r, None)] = lst
+        c = cost.setdefault(r, [0.0, 0])
+        c[0] += len(lst)
+        c[1] += len(lst)
+    return D.View(split, view, pmap, obs, unresolved, cost, {})
+
+
+def ok(risk, verdict="approve"):
+    return ("ok", verdict, risk)
