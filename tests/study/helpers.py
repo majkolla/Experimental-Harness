@@ -70,3 +70,29 @@ def pin_all(obj):
     obj["vul4j"]["image"] = "test-image"
     obj["vul4j"]["image_digest"] = "sha256:" + "cd" * 32
     return obj
+
+
+def synthetic_cfg(tmp_path, with_code=False, edits=None):
+    """Load the shipped synthetic config from a fresh study dir (optionally edited)."""
+    d = make_study_dir(tmp_path, with_code=with_code)
+    p = d / "study.synthetic.jsonc"
+    if edits:
+        edit(p, edits)
+    cfg = S.load(p)
+    S.runs_dir(cfg).mkdir(parents=True, exist_ok=True)
+    return cfg
+
+
+def build_bank(cfg, split_name="development"):
+    """Run Stages 1-4 on the synthetic world for one split. Returns the runner."""
+    from hp import logs
+    from hp.bank import classify, generate, reproduce, select, sibling, vul4j
+
+    rd = S.runs_dir(cfg)
+    runner = vul4j.runner_for(cfg)
+    reproduce.run(cfg, runner, rd)
+    generate.run(cfg, runner, split_name, rd / logs.FILES["attempts"], sleep=lambda s: None)
+    classify.run(cfg, runner, split_name, rd)
+    select.run(cfg, split_name, rd)
+    sibling.run(cfg, runner, split_name, rd)
+    return runner
