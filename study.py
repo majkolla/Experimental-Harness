@@ -9,6 +9,7 @@
     python study.py select        study.jsonc --split development
     python study.py sibling       study.jsonc --split development
     python study.py bank          study.jsonc --split development
+    python study.py review        study.jsonc --split development [--expb] [--blocks core,extension]
 
 Every command validates the config first (a live config refuses to run while
 any pin is still a placeholder) and appends to the logs under `paths.runs`.
@@ -114,6 +115,20 @@ def cmd_bank(a):
           f"{dict(Counter((p['block'], p['generator']) for p in pairs))}")
 
 
+def cmd_review(a):
+    from hp.bank import vul4j
+    from hp.review import dispatch
+
+    cfg, rd = _cfg(a)
+    blocks = tuple(b for b in a.blocks.split(",") if b)
+    if not cfg["extension"]["enabled"]:
+        blocks = tuple(b for b in blocks if b != "extension")
+    s = dispatch.run(cfg, vul4j.runner_for(cfg), a.split, rd, blocks=blocks, expb=a.expb)
+    print({k: v for k, v in s.items() if k != "excluded_pairs"})
+    if s["excluded_pairs"]:
+        print(f"excluded pairs (V and F together): {s['excluded_pairs']}")
+
+
 COMMANDS = {
     "validate": cmd_validate,
     "timing-pilot": cmd_timing_pilot,
@@ -123,6 +138,7 @@ COMMANDS = {
     "select": cmd_select,
     "sibling": cmd_sibling,
     "bank": cmd_bank,
+    "review": cmd_review,
 }
 
 
@@ -132,8 +148,11 @@ def parser():
     for name in COMMANDS:
         p = sub.add_parser(name)
         p.add_argument("config")
-        if name in ("generate", "classify", "select", "sibling", "bank"):
+        if name in ("generate", "classify", "select", "sibling", "bank", "review"):
             p.add_argument("--split", choices=("development", "test"), required=True)
+        if name == "review":
+            p.add_argument("--blocks", default="core,extension")
+            p.add_argument("--expb", action="store_true", help="also Experiment B (development only)")
         if name == "reproduce":
             p.add_argument("--cves", default=None, help="comma-separated subset")
         if name == "timing-pilot":

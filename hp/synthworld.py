@@ -211,6 +211,23 @@ def _test_java(pkg, cls, ordinary, flaky):
     return "\n".join(lines)
 
 
+def _dispatcher_test_java(pkg, cls, names):
+    lines = [f"package {pkg};", "", "import org.junit.Test;", "import static org.junit.Assert.*;",
+             "", "public class DispatcherTest {", ""]
+    for name in names:
+        k = name.rsplit("#", 1)[1]
+        lines += [
+            "    @Test",
+            f"    public void {k}() {{",
+            '        assertEquals("abc", new Dispatcher().handle(" abc "));',
+            f"        assertEquals(6, new {cls}().scale2(3));",
+            "    }",
+            "",
+        ]
+    lines += ["}", ""]
+    return "\n".join(lines)
+
+
 def unified(path, before, after):
     return "".join(
         difflib.unified_diff(
@@ -240,13 +257,17 @@ class World:
         base = "src/main/java/" + pkg.replace(".", "/")
         tbase = "src/test/java/" + pkg.replace(".", "/")
         main, helper, test = f"{base}/{cls}.java", f"{base}/Dispatcher.java", f"{tbase}/{cls}Test.java"
-        ordinary = [f"{pkg}.{cls}Test#testScale{k}" for k in range(1, 5)]
+        dtest = f"{tbase}/DispatcherTest.java"
+        handler_tests = [f"{pkg}.{cls}Test#testScale{k}" for k in range(1, 5)]
+        dispatcher_tests = [f"{pkg}.DispatcherTest#testHandles{k}" for k in range(1, 3)]
+        ordinary = handler_tests + dispatcher_tests
         flaky = [f"{pkg}.{cls}Test#testTimingSensitive{k}"
                  for k in range(1, 1 + int(self.params.get("flaky_tests_per_cve", 0)))]
         files = {
             main: _main_java(pkg, cls),
             helper: _helper_java(pkg, cls),
-            test: _test_java(pkg, cls, ordinary, flaky),
+            test: _test_java(pkg, cls, handler_tests, flaky),
+            dtest: _dispatcher_test_java(pkg, cls, dispatcher_tests),
         }
         fixed_main = _main_java(pkg, cls, fixed=True)
         status, x, acc = "eligible", u("status", self.seed, cve), 0.0
