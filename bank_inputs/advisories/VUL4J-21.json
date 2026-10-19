@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-254",
+ "summary": "The streaming XML signature verifier can be bypassed with a crafted XML document. For enveloped signatures, signed content can be modified after signing and the tampered document is still accepted, because the digest check of the referenced content is not enforced on the main processing chain.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://nvd.nist.gov/vuln/detail/CVE-2014-8152",
+  "https://github.com/apache/santuario-java/commit/e50488044121cf01ffbc235ca53b9562031d69c5"
+ ]
+}

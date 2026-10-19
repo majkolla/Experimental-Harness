@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-22",
+ "summary": "When extracting ZIP archives, entry names containing '../' sequences are not checked against the destination directory. A crafted archive can write files to arbitrary locations outside the extraction directory ('Zip-Slip').",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2018-1002200"
+ ]
+}

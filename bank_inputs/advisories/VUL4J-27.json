@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-264",
+ "summary": "The request parameters interceptor does not adequately block parameter names that reach an object's class property, for example through array or indexed syntax. A crafted request can therefore manipulate the class loader through parameter binding and achieve remote code execution; an earlier attempt to block such parameter names was incomplete.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2014-0112"
+ ]
+}

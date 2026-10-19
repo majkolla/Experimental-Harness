@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-835",
+ "summary": "The RGBE (Radiance HDR) image decoder does not detect end-of-stream while decompressing run-length encoded scanlines. A truncated or malformed input file makes the decoder loop forever, enabling denial of service against any service that parses untrusted images.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2018-17201",
+  "https://github.com/apache/commons-imaging/commit/f5574bfe285edd79207fe8c30f53cb0af06e26bb"
+ ]
+}

@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-611",
+ "summary": "The XML loading routine parses user-supplied or remote XML documents with DTD and external entity processing enabled. A crafted document can trigger XML external entity attacks, leading to disclosure of confidential files, denial of service, server-side request forgery or port scanning.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2018-1000820"
+ ]
+}

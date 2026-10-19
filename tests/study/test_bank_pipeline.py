@@ -8,7 +8,7 @@ import pathlib
 import pytest
 
 from hp import logs, study_config as S
-from hp.bank import assemble, generate, reproduce, select, sibling, split, vul4j
+from hp.bank import assemble, classify, generate, reproduce, select, sibling, split, vul4j
 from hp.bank.vul4j import parse_surefire
 from tests.study.helpers import build_bank, synthetic_cfg
 
@@ -268,82 +268,56 @@ def test_the_lock_opens_only_with_a_valid_freeze(tmp_path):
         S.load(cfg["_path"])
 
 
-def test_container_runner_composes_pinned_offline_commands(tmp_path):
-    """The real runner is unverified offline; this pins how its commands are built."""
-    seen = []
-
-    def fake(argv, timeout=None):
-        seen.append(argv)
-        return 0, "", ""
-
-    cfg = {"vul4j": {"image": "img", "image_digest": "sha256:" + "ab" * 32, "cli": "vul4j",
-                     "workdir": str(tmp_path)}}
-    r = vul4j.ContainerVul4J(cfg, run=fake)
-    h = r.prepare("VUL4J-1", "fixed", diff="--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b\n")
-    run = r.run_tests(h, tests=["p.T#pov"])
-    assert all(a[:5] == ["docker", "run", "--rm", "--network", "none"] for a in seen)
-    assert all(f"img@sha256:{'ab' * 32}" in a for a in seen)
-    cmds = [" ".join(a[a.index(f"img@sha256:{'ab' * 32}") + 1:]) for a in seen]
-    assert cmds[0].startswith("vul4j checkout --id VUL4J-1")
-    assert any(c.startswith("vul4j apply --version human_patch") for c in cmds)
-    assert any(c.startswith("git -C /ws/src apply") for c in cmds)
-    assert any(c.startswith("vul4j compile") for c in cmds)
-    assert cmds[-1] == "vul4j test -d /ws/src --tests p.T#pov"
-    assert run.completed is False  # no surefire reports were produced by the fake
+# ContainerVul4J is tested in tests/study/test_vul4j_container.py.
 
 
-def _fake_docker(seen, fail_on=None, info=None):
-    def fake(argv, timeout=None):
-        seen.append(argv)
-        cmd = " ".join(argv[argv.index("img@sha256:" + "ab" * 32) + 1:])
-        if fail_on and cmd.startswith(fail_on):
-            return 1, "", "boom"
-        if cmd.startswith("vul4j info"):
-            return 0, json.dumps(info or {"human_patch_files": ["src/main/java/p/H.java"]}), ""
-        if cmd.startswith("vul4j checkout"):
-            ws = pathlib.Path(argv[argv.index("-v") + 1].split(":")[0])
-            f = ws / "src" / "src" / "main" / "java" / "p" / "H.java"
-            f.parent.mkdir(parents=True, exist_ok=True)
-            f.write_text("class H {}\n")
-        return 0, "", ""
-    return fake
+def test_parallel_stage1_and_classification_match_the_serial_run(tmp_path):
+    """--jobs only changes speed: the same rows (in any log order) as one job."""
+    from hp import logs as L
+
+    def bank(sub, jobs):
+        cfg = synthetic_cfg(tmp_path / sub)
+        rd = S.runs_dir(cfg)
+        runner = vul4j.runner_for(cfg)
+        reproduce.run(cfg, runner, rd, jobs=jobs)
+        generate.run(cfg, runner, "development", rd / L.FILES["attempts"], sleep=lambda s: None)
+        classify.run(cfg, runner, "development", rd, jobs=jobs)
+        repro = sorted((r["cve"], r["status"], json.dumps(r["signature"], sort_keys=True))
+                       for r in L.read(rd / L.FILES["reproduction"]))
+        cls = sorted((r["attempt_id"], r["class"], r.get("reason"))
+                     for r in L.read(rd / L.FILES["attempts"]) if r["kind"] == "classification")
+        return repro, cls
+
+    serial, parallel = bank("one", 1), bank("four", 4)
+    assert serial == parallel
+    assert len(serial[1]) > 0
 
 
-def _container(tmp_path, fake):
-    cfg = {"vul4j": {"image": "img", "image_digest": "sha256:" + "ab" * 32, "cli": "vul4j",
-                     "workdir": str(tmp_path / "w")}}
-    return vul4j.ContainerVul4J(cfg, run=fake)
+def test_infrastructure_failures_are_not_logged_and_ctrl_c_interrupts(tmp_path):
+    from hp.bank import parallel
+    from hp.bank.vul4j import InfraError
 
+    done = []
 
-def test_container_runner_removes_workspaces(tmp_path):
-    """Review finding 13: every prepared workspace is removed on release, and a failed
-    prepare leaves nothing behind."""
-    seen = []
-    r = _container(tmp_path, _fake_docker(seen))
-    h = r.prepare("VUL4J-1", "vulnerable")
-    ws = h.extra["ws"]
-    assert ws.is_dir()
-    r.release(h)
-    assert not ws.exists()
+    def fn(i):
+        if i == 2:
+            raise InfraError("disk full")
+        done.append(i)
+        return i
 
-    r = _container(tmp_path, _fake_docker(seen, fail_on="vul4j compile"))
-    with pytest.raises(vul4j.BuildError):
-        r.prepare("VUL4J-1", "vulnerable")
-    assert list((tmp_path / "w").iterdir()) == []
+    with pytest.raises(InfraError, match="1 item"):
+        parallel.run_items(range(5), fn, jobs=3)
+    assert sorted(done) == [0, 1, 3, 4]          # the others still finished
 
+    class R:
+        stopped = False
 
-def test_container_runner_caches_reference_checkouts_and_metadata(tmp_path):
-    seen = []
-    with _container(tmp_path, _fake_docker(seen)) as r:
-        for _ in range(3):
-            assert r.read_files("VUL4J-1", ["src/main/java/p/H.java"]) == \
-                {"src/main/java/p/H.java": "class H {}\n"}
-        assert r.list_files("VUL4J-1") == ["src/main/java/p/H.java"]
-        for _ in range(3):
-            assert r.human_files("VUL4J-1") == ["src/main/java/p/H.java"]
-        cmds = [" ".join(a[a.index("img@sha256:" + "ab" * 32) + 1:]) for a in seen]
-        assert sum(c.startswith("vul4j checkout") for c in cmds) == 1
-        assert sum(c.startswith("vul4j compile") for c in cmds) == 0   # source only
-        assert sum(c.startswith("vul4j info") for c in cmds) == 1
-        assert len(list((tmp_path / "w").iterdir())) == 1              # the kept reference
-    assert list((tmp_path / "w").iterdir()) == []                      # closed
+        def interrupt(self):
+            R.stopped = True
+
+    def ctrl_c(i):
+        raise KeyboardInterrupt
+
+    with pytest.raises(KeyboardInterrupt):
+        parallel.run_items(range(3), ctrl_c, jobs=1)
+    assert parallel.run_items([], fn, jobs=4) == []

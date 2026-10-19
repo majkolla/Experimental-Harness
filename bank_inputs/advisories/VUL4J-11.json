@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-264",
+ "summary": "The multipart request stream parser does not handle a boundary that is too long for its internal buffer. A remote attacker can send a crafted Content-Type header that defeats the loop's exit conditions, causing an infinite loop and high CPU use (denial of service).",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://nvd.nist.gov/vuln/detail/CVE-2014-0050"
+ ]
+}

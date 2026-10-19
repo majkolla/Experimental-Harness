@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-20",
+ "summary": "The handler for HTTP PATCH requests evaluates the path values of JSON Patch operations as expressions without validating them against the target resource's properties. A remote attacker can send a crafted JSON Patch document that executes arbitrary code on the server.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2017-8046"
+ ]
+}

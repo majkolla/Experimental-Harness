@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-502",
+ "summary": "The YAML-based settings loader uses the underlying YAML library with its default settings, which allow YAML content to instantiate arbitrary classes through special tags. Loading a settings file or stream from an untrusted source can therefore create attacker-chosen objects and lead to code execution outside the application's control.",
+ "status": "draft",
+ "cwe_source": "drafter",
+ "sources": [
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2020-1953"
+ ]
+}

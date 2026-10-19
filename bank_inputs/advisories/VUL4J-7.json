@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-835",
+ "summary": "When reading a specially crafted archive whose stored (non-deflated) entry is truncated, the streaming ZIP entry reader's read methods can fail to signal end-of-stream after the data is exhausted. Callers that keep reading, for example through a character stream reader, loop forever, enabling denial of service.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2018-11771"
+ ]
+}

@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-269",
+ "summary": "The script restriction transformer does not stop scripts from defining classes that override the finalize method. Because finalizers run outside the intercepted execution, a user allowed to configure jobs can run arbitrary unrestricted code on the controller JVM, bypassing the script security restrictions.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2018-1000865"
+ ]
+}

@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-184",
+ "summary": "The default patterns that decide which request parameter names are rejected before being bound to actions are incorrectly defined. Crafted parameter names can be used to compromise the application's internal state, while the class-access pattern is so broad that it also rejects legitimate names merely containing the word 'class'.",
+ "status": "draft",
+ "cwe_source": "drafter",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2015-1831",
+  "https://github.com/apache/struts/commit/d832747d647df343ed07a58b1b5e540a05a4d51b"
+ ]
+}

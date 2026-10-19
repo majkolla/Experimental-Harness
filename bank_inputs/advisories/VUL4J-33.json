@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-77",
+ "summary": "When dynamic method invocation is enabled, the method name supplied through the 'method:' request prefix is evaluated as an expression without blocking chained expressions. A remote attacker can place a sequence of expressions in this value and execute arbitrary code on the server.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2016-3081"
+ ]
+}

@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-22",
+ "summary": "The servlet that serves static resources does not properly sanitize the requested resource paths. Paths containing directory traversal sequences let attackers read files outside the intended resource locations.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://github.com/advisories/GHSA-2m8h-fgr8-2q9w"
+ ]
+}

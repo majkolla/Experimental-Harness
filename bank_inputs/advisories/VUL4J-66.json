@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-20",
+ "summary": "Media type values are not validated for illegal characters such as newlines. An attacker-influenced media type can therefore place an illegal header value in an HTTP response, enabling header injection and unexpected behaviour when the response is built.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://github.com/advisories/GHSA-63cq-ppq8-cw6g"
+ ]
+}

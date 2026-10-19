@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-918",
+ "summary": "The build publisher that parses code-metrics XML report files processes XML external entities. A user able to influence a parsed report can use crafted entities to extract secrets from the server, perform server-side request forgery, or cause a denial of service.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2018-1000054"
+ ]
+}

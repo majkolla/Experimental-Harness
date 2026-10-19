@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-352",
+ "summary": "The anti-CSRF form token helper generates token values with a non-cryptographic random number generator, making them predictable. A remote attacker can guess valid tokens and bypass the cross-site request forgery protection.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2014-7809",
+  "https://github.com/apache/struts/commit/1f301038a751bf16e525607c3db513db835b2999"
+ ]
+}

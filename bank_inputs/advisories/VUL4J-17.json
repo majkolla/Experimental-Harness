@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-20",
+ "summary": "The URI builder does not normalize paths that lack a leading slash. A malformed path such as '@other-host/path' is appended directly after the authority, so the generated URI is interpreted with a different host than the one configured, and requests can be sent to an attacker-chosen server.",
+ "status": "draft",
+ "cwe_source": "drafter",
+ "sources": [
+  "https://github.com/apache/httpcomponents-client/commit/0554271750599756d4946c0d7ba43d04b1a7b22"
+ ]
+}

@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-22",
+ "summary": "The example archive expander checks that each extracted entry stays inside the target directory by comparing path string prefixes without a trailing separator. An archive entry containing '..' that resolves into a sibling directory whose name begins with the target directory's name passes the check, so files can be written outside the intended directory.",
+ "status": "draft",
+ "cwe_source": "drafter",
+ "sources": [
+  "https://github.com/apache/commons-compress/commit/a080293da69f3fe3d11d5214432e1469ee195870"
+ ]
+}

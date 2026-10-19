@@ -158,6 +158,11 @@ def require_complete(cfg, rd, split_name):
     return c
 
 
+REHEARSAL_BANNER = (
+    "*** REHEARSAL: every model slot is an open-weight stand-in. These numbers test the\n"
+    "*** pipeline; they are not study results and must not be reported. ***\n\n")
+
+
 def analyse_dev(cfg, rd, write=True, check=True):
     completeness_dev = require_complete(cfg, rd, "development") if check else None
     target = cfg["acceptance_target"]
@@ -223,7 +228,10 @@ def analyse_dev(cfg, rd, write=True, check=True):
         _write(rd, "thresholds.json", thr)
         _write(rd, "primary_choice.json", primary_choice)
         _write(rd, "dev_report.json", report)
-        (rd / "dev_report.txt").write_text(text_dev(report))
+        text = text_dev(report)
+        if cfg.get("mode") == "rehearsal":
+            text = REHEARSAL_BANNER + text
+        (rd / "dev_report.txt").write_text(text)
     return {"thresholds": thr, "primary_choice": primary_choice, "report": report}
 
 

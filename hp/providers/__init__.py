@@ -229,8 +229,17 @@ def _ollama(spec, prompt, cfg, contract=schema.LEGACY):
         options["top_p"] = cfg["top_p"]
     if spec.get("num_ctx") is not None:
         options["num_ctx"] = spec["num_ctx"]
-    options.update(_overrides(spec))
+    over = _overrides(spec)
+    # Ollama takes the reasoning switch as a top-level request field, not as a
+    # model option: inside `options` it would be ignored silently. Values:
+    # true / false, or "low" | "medium" | "high" for models that accept levels.
+    think = over.pop("think", None)
+    options.update(over)
     kwargs = {}
+    if think is not None:
+        kwargs["think"] = think
+    if spec.get("keep_alive") is not None:
+        kwargs["keep_alive"] = spec["keep_alive"]
     if contract.kind == "json":
         kwargs["format"] = contract.schema
     r = client.chat(
@@ -253,6 +262,7 @@ def _ollama(spec, prompt, cfg, contract=schema.LEGACY):
         raise Truncated("length")
     message = _attr(r, "message")
     content = _attr(message, "content")
+    meta["thinking_chars"] = len(_attr(message, "thinking") or "")
     return content, meta
 
 

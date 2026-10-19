@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-79",
+ "summary": "The href validation in the cross-site scripting protection API escapes and encodes URLs incorrectly, so specially crafted URLs are accepted as valid even though they carry script payloads. Applications relying on this check to sanitize link targets are exposed to cross-site scripting.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2017-15717"
+ ]
+}

@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-611",
+ "summary": "The Atom feed and entry message body readers of the REST (JAX-RS) module parse request bodies with an XML parser that expands entities by default. A client can submit an Atom document containing external entity references, exposing the server to XML external entity (XXE) attacks such as local file disclosure.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://nvd.nist.gov/vuln/detail/CVE-2016-8739"
+ ]
+}

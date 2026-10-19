@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-345",
+ "summary": "The JWT issuer validator compares the configured issuer and the token's issuer claim as URL objects, whose equality check can treat different issuer URLs as equal. When an honest issuer and a malicious user sign with the same private key, the malicious user can craft tokens with a different issuer URL that are accepted, bypassing authorization.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://github.com/advisories/GHSA-27xw-p8v6-9jjr",
+  "https://github.com/spring-projects/spring-security/commit/c70b65c5df0e170a2d34d812b83db0b7bc71ea25"
+ ]
+}

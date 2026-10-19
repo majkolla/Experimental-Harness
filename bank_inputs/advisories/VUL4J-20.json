@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-20",
+ "summary": "Loading a carefully crafted PDF file can make document processing fail or run for an extremely long time. Arrays that are expected to contain only numbers are converted with an unchecked cast, so malformed documents containing non-numeric entries cause unexpected failures instead of being handled gracefully, enabling denial of service.",
+ "status": "draft",
+ "cwe_source": "drafter",
+ "sources": [
+  "https://nvd.nist.gov/vuln/detail/CVE-2018-11797",
+  "https://github.com/apache/pdfbox/commit/0e14d6a42cc965e23bb1b40f04b4c002dc173b88"
+ ]
+}

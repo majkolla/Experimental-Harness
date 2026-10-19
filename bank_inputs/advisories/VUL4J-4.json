@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-611",
+ "summary": "The XPath expression evaluator, when given a message body that is a string or file not already parsed into a document (including invalid XML), parses it with external entity resolution enabled. A crafted document containing an external entity reference lets a remote attacker read arbitrary local files (XXE).",
+ "status": "draft",
+ "cwe_source": "nvd",
+ "sources": [
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2015-0264",
+  "https://cveawg.mitre.org/api/cve/CVE-2015-0264"
+ ]
+}

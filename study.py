@@ -15,6 +15,12 @@
     python study.py confirm       study.jsonc                 # test-set inference and the report
     python study.py selftest      [--full] [--dir DIR]        # whole pipeline offline, synthetic
     python study.py audit-logs    study.jsonc                 # every row against its schema
+    python study.py pin           study.rehearsal.jsonc --write   # pins from Ollama and Docker
+    python study.py vul4j-check   study.rehearsal.jsonc --cve VUL4J-12   # one-CVE image smoke test
+
+Modes: `synthetic` (offline, mock Vul4J), `rehearsal` (real container and real
+models, every slot an open-weight stand-in, development split only, never
+frozen) and `live` (the study).
 
 Every command validates the config first (a live config refuses to run while
 any pin is still a placeholder) and appends to the logs under `paths.runs`.
@@ -70,7 +76,8 @@ def cmd_reproduce(a):
 
     cfg, rd = _cfg(a)
     with vul4j.runner_for(cfg) as runner:
-        rows = reproduce.run(cfg, runner, rd, cves=a.cves.split(",") if a.cves else None)
+        rows = reproduce.run(cfg, runner, rd, cves=a.cves.split(",") if a.cves else None,
+                             jobs=a.jobs)
     print(f"reproduced {len(rows)} CVEs: {dict(Counter(r['status'] for r in rows))}")
 
 
@@ -89,7 +96,7 @@ def cmd_classify(a):
 
     cfg, rd = _cfg(a)
     with vul4j.runner_for(cfg) as runner:
-        rows = classify.run(cfg, runner, a.split, rd)
+        rows = classify.run(cfg, runner, a.split, rd, jobs=a.jobs)
     print(f"classified {len(rows)} attempts: {dict(Counter(r['class'] for r in rows))}")
 
 
@@ -157,8 +164,79 @@ def cmd_confirm(a):
     from hp.analysis import report
 
     cfg, rd = _cfg(a)
+    if cfg["mode"] == "rehearsal":
+        raise SystemExit("confirm is refused in rehearsal mode: a rehearsal never opens "
+                         "the test split (the synthetic selftest exercises confirm)")
     report.confirm(cfg, rd)
     print((rd / "test_report.txt").read_text())
+
+
+def cmd_pin(a):
+    """Read the pins from the serving host: open weights from Ollama, the Vul4J image
+    digest from Docker. Facts, never typed by hand."""
+    from hp import pins
+
+    got, digest = pins.run(a.config, write=a.write, vul4j=not a.no_vul4j)
+    for ref, v in got.items():
+        print(f"{ref}: {v['weights_sha']}  {v['precision']}  {v['serving_stack']}")
+    if digest:
+        print(f"vul4j image: {digest[0]} ({digest[1]})")
+    print("written to " + a.config if a.write else "(dry run; add --write to put these in the config)")
+
+
+def cmd_vul4j_check(a):
+    """Smoke test of the pinned Vul4J image on one CVE: checkout, metadata, build
+    both versions, one full test run each. Writes nothing to the study logs."""
+    import time
+
+    from hp.bank import vul4j
+
+    import pathlib
+
+    path = pathlib.Path(a.config).resolve()
+    cfg = S.parse_jsonc(path.read_text())   # model pins are irrelevant here
+    cfg["_root"] = path.parent
+    if cfg["vul4j"].get("runner") != "container" or "TO_PIN" in str(cfg["vul4j"].get("image_digest")):
+        raise SystemExit("vul4j-check needs vul4j.runner 'container' and a pinned image_digest "
+                         "(python study.py pin CONFIG --write)")
+    cve = a.cve
+    with vul4j.runner_for(cfg) as r:
+        prov = r.provenance(cfg["vul4j"].get("source_commit"))
+        print(f"image: {r.image}  /vul4j HEAD {prov['head']}  "
+              f"built from {cfg['vul4j'].get('source_commit')}: {prov['commit_ok']}  "
+              f"warm-up ran: {prov['warmup_ran']}")
+        if prov["warmup_failed"]:
+            print(f"  the image build could not reproduce: {', '.join(prov['warmup_failed'])}")
+        t0 = time.time()
+        meta = r.metadata(cve)
+        print(f"{cve}: cluster {meta['cluster']}, PoV {meta['pov_tests']}")
+        print(f"  human files: {r.human_files(cve)}")
+        print(f"  PoV test files: {r.pov_test_files(cve)}")
+        print(f"  human patch: {len(r.human_patch(cve).splitlines())} diff lines")
+        ok = True
+        for version, want in (("vulnerable", "fail"), ("fixed", "pass")):
+            t1 = time.time()
+            h = r.prepare(cve, version)
+            build_s = time.time() - t1
+            try:
+                run = r.run_tests(h, scope="full")
+            finally:
+                r.release(h)
+            if not run.completed:
+                print(f"  {version}: test run did not complete: {run.error}")
+                ok = False
+                continue
+            outs = {t: run.outcome(t) for t in meta["pov_tests"]}
+            good = all((o in ("fail", "error")) if want == "fail" else o == "pass" for o in outs.values())
+            ok = ok and good and bool(outs)
+            print(f"  {version}: build {build_s:.0f} s, tests {run.wall_s:.0f} s, "
+                  f"{len(run.results)} tests, PoV {outs} -> {'as expected' if good else 'UNEXPECTED'}")
+            for t in meta["pov_tests"]:
+                if run.signature(t):
+                    print(f"    signature {t}: {run.signature(t)}")
+        print(f"  total {time.time() - t0:.0f} s: {'OK' if ok else 'PROBLEM'}")
+    if not ok:
+        raise SystemExit(1)
 
 
 def cmd_selftest(a):
@@ -230,6 +308,8 @@ COMMANDS = {
     "confirm": cmd_confirm,
     "selftest": cmd_selftest,
     "audit-logs": cmd_audit_logs,
+    "pin": cmd_pin,
+    "vul4j-check": cmd_vul4j_check,
 }
 
 
@@ -250,6 +330,14 @@ def parser():
             p.add_argument("--expb", action="store_true", help="also Experiment B (development only)")
         if name == "reproduce":
             p.add_argument("--cves", default=None, help="comma-separated subset")
+        if name in ("reproduce", "classify"):
+            p.add_argument("--jobs", type=int, default=1,
+                           help="CVEs / attempts processed at once, each in its own containers")
+        if name == "pin":
+            p.add_argument("--write", action="store_true", help="write the pins into the config")
+            p.add_argument("--no-vul4j", action="store_true", help="open weights only")
+        if name == "vul4j-check":
+            p.add_argument("--cve", default="VUL4J-12", help="one CVE (default: a small one)")
         if name == "timing-pilot":
             p.add_argument("--cves", required=True, help="comma-separated CVE ids")
             p.add_argument("--runs", type=int, default=3)

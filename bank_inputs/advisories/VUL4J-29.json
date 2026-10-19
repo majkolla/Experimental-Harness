@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-264",
+ "summary": "When the cookie interceptor is configured to accept all cookie names via a wildcard, it does not block cookie names that reach the getClass method. A remote attacker can send crafted cookie names to manipulate the class loader and modify session state.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://nvd.nist.gov/vuln/detail/CVE-2014-0116"
+ ]
+}

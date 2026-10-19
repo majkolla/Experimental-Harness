@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-79",
+ "summary": "The HTML sanitizer can be bypassed with a specially crafted tag that supports style with active content. The sanitized output can then still contain executable code, resulting in cross-site scripting.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://github.com/advisories/GHSA-683w-6h9j-57wq"
+ ]
+}

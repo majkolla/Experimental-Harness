@@ -69,6 +69,11 @@ def assert_accessible(cfg, cve, purpose):
     if name is None:
         raise SplitLockError(f"{cve} is not in the registered split")
     if name == "test" and purpose in LOCKED_PURPOSES:
+        if cfg.get("mode") == "rehearsal":
+            raise SplitLockError(
+                f"{cve} is a test-split CVE: a rehearsal never touches the test split "
+                f"({purpose} refused)"
+            )
         ok, reason = frozen(cfg)
         if not ok:
             raise SplitLockError(

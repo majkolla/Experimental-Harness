@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-502",
+ "summary": "When the XML deserializer's security framework has not been explicitly initialized, unmarshalling still allows dangerous types, such as an event handler proxy, to be constructed from input. A remote attacker supplying crafted XML or another supported format can execute arbitrary shell commands, a regression of an earlier deserialization flaw.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://github.com/advisories/GHSA-hf23-9pf7-388p"
+ ]
+}

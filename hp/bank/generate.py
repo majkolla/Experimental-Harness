@@ -35,7 +35,11 @@ def advisory_for(cfg, cve):
     p = cfg["_root"] / cfg["paths"]["inputs"] / "advisories" / f"{cve}.json"
     if not p.is_file():
         raise FileNotFoundError(f"advisory for {cve} missing: {p} (author-written, section 8)")
-    return json.loads(p.read_text())
+    adv = json.loads(p.read_text())
+    if cfg["mode"] == "live" and adv.get("status") == "draft":
+        raise ValueError(f"advisory for {cve} is still a draft: review it and remove "
+                         "\"status\" (docs/advisories_review.md)")
+    return adv
 
 
 def generators(cfg):
@@ -86,7 +90,7 @@ def run(cfg, runner, split_name, log_path, sleep=None):
         if cve not in cache:
             files = runner.read_files(cve, runner.human_files(cve))
             text = generation_input(template, advisory_for(cfg, cve), files)
-            leaks.scan(text, leaks.patterns(runner.metadata(cve), *leaks.model_identity(cfg)))
+            leaks.scan(text, leaks.oracle_patterns(runner.metadata(cve)))
             cache[cve] = (text, hashlib.sha256(text.encode()).hexdigest())
         return cache[cve]
 

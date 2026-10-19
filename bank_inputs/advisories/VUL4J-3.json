@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-611",
+ "summary": "The XML type converter that builds SAX sources from input streams creates its parser with external entity processing enabled. A message containing an XML document with an external entity reference, for example to a local file, is expanded during processing such as XSLT transformation, letting a remote attacker read arbitrary files from the server.",
+ "status": "draft",
+ "cwe_source": "drafter",
+ "sources": [
+  "https://nvd.nist.gov/vuln/detail/CVE-2015-0263",
+  "https://github.com/apache/camel/commit/7d19340bcdb42f7aae584d9c5003ac4f7ddaee36"
+ ]
+}

@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-918",
+ "summary": "The parser for test result report files processes XML external entities. A user able to supply report files during a build can extract secrets from the server, perform server-side request forgery, or cause a denial of service.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2018-1000056"
+ ]
+}

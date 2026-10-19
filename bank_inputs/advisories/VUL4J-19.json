@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-732",
+ "summary": "When an encrypted PDF is opened with the user password (not the owner password) via the standard password-based security handler, the resulting access permissions are not marked read-only, unlike the certificate-based handler. Code relying on these permissions can then modify them or the document, bypassing restrictions intended for non-owner users.",
+ "status": "draft",
+ "cwe_source": "drafter",
+ "sources": [
+  "https://issues.apache.org/jira/browse/PDFBOX-3341",
+  "https://github.com/bqcuong/vul4j/commit/c90825da4d28d7b1ae9b1484b9a010206be3dec5"
+ ]
+}

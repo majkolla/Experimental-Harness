@@ -93,3 +93,39 @@ def test_a_model_reload_triggers_a_fresh_pin_check(fake_server):
     Probe.facts_value = {**Probe.facts_value, "weights_sha": "ef" * 32}
     with pytest.raises(providers.PinViolation):
         providers.call_once(SPEC, "p", CFG, schema.REVIEW_V13)
+
+
+def test_ollama_think_is_a_top_level_request_field(monkeypatch):
+    """Inside `options` Ollama ignores the reasoning switch silently (pilot, 13 Oct:
+    thinking moved a reviewer's approval of vulnerable code from 0.10 to 0.62)."""
+    import sys
+    import types
+
+    seen = {}
+
+    class Client:
+        def __init__(self, host=None, timeout=None):
+            seen["host"], seen["timeout"] = host, timeout
+
+        def chat(self, **kw):
+            seen.update(kw)
+            return {"message": {"content": '{"verdict": "approve"}', "thinking": "abc"},
+                    "done_reason": "stop", "prompt_eval_count": 10, "eval_count": 5}
+
+    monkeypatch.setitem(sys.modules, "ollama", types.SimpleNamespace(Client=Client))
+    spec = {**SPEC, "reasoning_params": {"think": False, "repeat_penalty": 1.1},
+            "keep_alive": "60m"}
+    text, meta = providers._ollama(spec, "p", CFG, schema.REVIEW_V13)
+    assert seen["think"] is False
+    assert "think" not in seen["options"]
+    assert seen["options"]["repeat_penalty"] == 1.1
+    assert seen["options"]["num_ctx"] == 4000 and seen["options"]["num_predict"] == 500
+    assert seen["keep_alive"] == "60m"
+    assert meta["thinking_chars"] == 3
+
+    seen.clear()
+    providers._ollama({**SPEC, "reasoning_params": {"think": "medium"}}, "p", CFG, schema.REVIEW_V13)
+    assert seen["think"] == "medium"
+    seen.clear()
+    providers._ollama(dict(SPEC), "p", CFG, schema.REVIEW_V13)
+    assert "think" not in seen and "keep_alive" not in seen

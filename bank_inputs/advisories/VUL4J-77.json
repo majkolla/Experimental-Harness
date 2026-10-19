@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-502",
+ "summary": "Reading a web service interface description written in YAML deserializes arbitrary object types from the document. A maliciously crafted description file can cause arbitrary code to execute when it is loaded.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2017-1000207"
+ ]
+}

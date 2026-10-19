@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-502",
+ "summary": "The XML deserializer used for configuration and remote data can be made to instantiate the void/Void type. Deserializing such crafted input crashes the Java process, allowing an attacker who can supply serialized data to cause a denial of service.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://github.com/advisories/GHSA-4466-8jm4-448p"
+ ]
+}

@@ -125,27 +125,41 @@ def classify(runner, gen_row, repro_row, reruns, scope="full"):
     return out
 
 
-def run(cfg, runner, split_name, runs_dir):
-    """Classify every generated attempt of a split that is not classified yet."""
+def run(cfg, runner, split_name, runs_dir, jobs=1):
+    """Classify every generated attempt of a split that is not classified yet.
+
+    `jobs` attempts are classified at once (each in its own containers); every
+    row is logged the moment its attempt is done, so an interrupted run keeps
+    them. Rows are returned in attempt order whatever the completion order."""
+    import threading
+
     from .. import logs
+    from .parallel import run_items
 
     repro = logs.latest((r for r in logs.read(runs_dir / logs.FILES["reproduction"])), "cve")
     rows = list(logs.read(runs_dir / logs.FILES["attempts"]))
     gens = logs.latest((r for r in rows if r["kind"] == "generation" and r["split"] == split_name),
                        "attempt_id")
     done = {r["attempt_id"] for r in rows if r["kind"] == "classification"}
-    out = []
+    todo = []
     for aid in sorted(gens):
         if aid in done:
             continue
         g = gens[aid]
         if g["status"] in ("timeout", "transport_error") and g["call_attempt"] < cfg["max_attempts"]:
             continue  # still open: a resume may complete it
+        todo.append(aid)
+    lock = threading.Lock()
+
+    def one(aid):
+        g = gens[aid]
         res = classify(runner, g, repro[g["cve"]], cfg["design"]["reruns"],
                        cfg["stage1"]["suite_scope"])
-        out.append({"kind": "classification", "attempt_id": aid, "cve": g["cve"],
-                    "cluster": g["cluster"], "split": g["split"], "generator": g["generator"],
-                    "block": g["block"], "diff_sha": g["diff_sha"], **res})
-    if out:
-        logs.append(runs_dir / logs.FILES["attempts"], out)
-    return out
+        row = {"kind": "classification", "attempt_id": aid, "cve": g["cve"],
+               "cluster": g["cluster"], "split": g["split"], "generator": g["generator"],
+               "block": g["block"], "diff_sha": g["diff_sha"], **res}
+        with lock:
+            logs.append(runs_dir / logs.FILES["attempts"], [row])
+        return row
+
+    return run_items(todo, one, jobs, runner)

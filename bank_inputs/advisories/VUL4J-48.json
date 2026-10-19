@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-20",
+ "summary": "The JWT decoder does not correctly enforce signature validation: a token whose header declares the algorithm 'none', combined with a crafted body, can be accepted even though it carries no valid signature. Attackers can thereby forge unsigned tokens that pass validation.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://github.com/advisories/GHSA-jc5h-g7j7-qh2w"
+ ]
+}

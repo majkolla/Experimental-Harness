@@ -20,7 +20,7 @@ version are listed as excluded. Ineligible CVEs stay in the log and the report.
 
 import time
 
-from .vul4j import BuildError, signature_key
+from .vul4j import ApplyError, BuildError, signature_key
 
 
 def status_for(runs_complete, pov_stable, ordinary):
@@ -44,8 +44,8 @@ def reproduce_cve(runner, cve, cluster, split_name, reruns, scope="full"):
     for version in ("vulnerable", "fixed"):
         try:
             h = runner.prepare(cve, version)
-        except BuildError as exc:
-            row.update(status="build_fail", reason=f"{version}: {exc}")
+        except (BuildError, ApplyError) as exc:   # ApplyError: the human patch did not apply
+            row.update(status="build_fail", reason=f"{version}: {exc}"[:2000])
             return row
         try:
             runs = [runner.run_tests(h, scope=scope) for _ in range(reruns)]
@@ -126,20 +126,27 @@ def timing_pilot(runner, cves, runs, reruns, scope="full"):
     return rows
 
 
-def run(cfg, runner, runs_dir, cves=None):
-    """Stage 1 for every CVE in the split (or `cves`) not yet reproduced."""
+def run(cfg, runner, runs_dir, cves=None, jobs=1):
+    """Stage 1 for every CVE in the split (or `cves`) not yet reproduced.
+
+    `jobs` CVEs are reproduced at once (each in its own containers); every row
+    is logged the moment its CVE is done, so an interrupted run keeps them."""
+    import threading
+
     from .. import logs
+    from .parallel import run_items
     from .split import load_split
 
     split = load_split(cfg)
     done = {r["cve"] for r in logs.read(runs_dir / logs.FILES["reproduction"])}
-    todo = cves or (split.cves("development") + split.cves("test"))
-    out = []
-    for cve in todo:
-        if cve in done:
-            continue
+    todo = [c for c in (cves or (split.cves("development") + split.cves("test"))) if c not in done]
+    lock = threading.Lock()
+
+    def one(cve):
         row = reproduce_cve(runner, cve, split.cluster_of[cve], split.split_of[cve],
                             cfg["design"]["reruns"], scope="full")
-        logs.append(runs_dir / logs.FILES["reproduction"], [row])
-        out.append(row)
-    return out
+        with lock:
+            logs.append(runs_dir / logs.FILES["reproduction"], [row])
+        return row
+
+    return run_items(todo, one, jobs, runner)

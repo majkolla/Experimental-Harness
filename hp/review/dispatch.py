@@ -42,11 +42,17 @@ def _post_files(runner, cve, diff):
     return difftools.apply(base, diff), changed
 
 
+def _pre_files(runner, cve, diff):
+    """The pre-patch content of every file a diff touches (old paths included)."""
+    paths = sorted({p for old, new, _ in difftools.parse(diff) for p in (old, new) if p})
+    return runner.read_files(cve, paths, "vulnerable")
+
+
 def prepare_inputs(cfg, runner, pairs, runs_dir, expb=False):
     """Build, scan and log every input. Returns (texts, excluded_pairs, expb_pairs)."""
     template = cfg["_prompts"]["review"]["text"]
     cap, ctx = cfg["caps"]["review_input_tokens"], cfg["caps"]["context_lines"]
-    ids, terms = leaks.model_identity(cfg)
+    ident = leaks.identity_patterns(*leaks.model_identity(cfg))
     logged = logs.latest((r for r in logs.read(runs_dir / logs.FILES["inputs"])),
                          lambda r: (r["candidate_id"], r["packet"]))
     texts, excluded, rows = {}, {}, []
@@ -71,7 +77,7 @@ def prepare_inputs(cfg, runner, pairs, runs_dir, expb=False):
     for p in pairs:
         assert_accessible(cfg, p["cve"], "review")
         meta = runner.metadata(p["cve"])
-        pats = leaks.patterns(meta, ids, terms)
+        pats = leaks.oracle_patterns(meta)
         summary = advisory_for(cfg, p["cve"])["summary"]
         built, status = {}, "ok"
         for state in schedule.STATES:
@@ -79,7 +85,8 @@ def prepare_inputs(cfg, runner, pairs, runs_dir, expb=False):
             post, _ = _post_files(runner, p["cve"], diff)
             res = build_review_input(template, summary, diff, post, cap, ctx)
             if res["status"] == "ok":
-                hits = leaks.find(res["text"], pats)
+                hits = leaks.find_review(res["text"], diff, pats, ident,
+                                         _pre_files(runner, p["cve"], diff))
                 if hits:
                     res = {**res, "status": "leak", "leak": sorted({h[0] for h in hits})}
             built[state] = res
@@ -103,7 +110,7 @@ def prepare_inputs(cfg, runner, pairs, runs_dir, expb=False):
         pcap = cfg["caps"]["packet_tokens"]
         for p in expb_pairs:
             meta = runner.metadata(p["cve"])
-            pats = leaks.patterns(meta, ids, terms)
+            pats = leaks.oracle_patterns(meta)
             summary = advisory_for(cfg, p["cve"])["summary"]
             listing = runner.list_files(p["cve"])
             main = runner.read_files(p["cve"], [f for f in listing if "/test/" not in f])
@@ -129,7 +136,8 @@ def prepare_inputs(cfg, runner, pairs, runs_dir, expb=False):
                     res = build_review_input(template, summary, diff, post, cfg["caps"]["review_input_tokens"],
                                              cfg["caps"]["context_lines"], evidence=pk["text"])
                     status = res["status"]
-                    if status == "ok" and leaks.find(res["text"], pats):
+                    if status == "ok" and leaks.find_review(res["text"], diff, pats, ident,
+                                                            _pre_files(runner, p["cve"], diff)):
                         status = "leak"
                     log_row(p, state, kind, res, status,
                             {"packet_sha": pk["sha256"], "packet_tokens": pk["proxy_tokens"],

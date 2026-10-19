@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-22",
+ "summary": "When building request URLs, path parameter values are substituted into the URL path without rejecting '.' or '..' segments. An attacker controlling an encoded path parameter can make a POST, PUT or DELETE request target a different resource than intended (directory traversal), adding or deleting resources.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2018-1000850"
+ ]
+}

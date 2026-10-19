@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-20",
+ "summary": "The JSON deserializer can be driven by a crafted request to instantiate types the application did not intend, enabling remote code execution (for example via a field whose value is an attacker-supplied remote lookup URI). In particular, when deserializing typed object arrays, elements are not parsed against the declared generic element type.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://nvd.nist.gov/vuln/detail/CVE-2017-18349",
+  "https://github.com/alibaba/fastjson/commit/f5903fa56497c00ed0703ac875b511f9bd5f1d8e"
+ ]
+}

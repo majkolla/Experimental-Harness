@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-400",
+ "summary": "HTTP Range request handling for static resources and controller-returned resources does not bound the number or total size of requested ranges. A request with very many ranges, or wide overlapping ranges, makes the server perform excessive work and produce oversized responses, causing denial of service.",
+ "status": "draft",
+ "cwe_source": "drafter",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2018-15756",
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2018-15756"
+ ]
+}

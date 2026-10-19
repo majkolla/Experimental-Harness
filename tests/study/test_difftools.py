@@ -57,3 +57,10 @@ def test_comment_lines_and_size():
 def test_similarity_is_one_for_identical_added_code():
     assert D.similarity(DIFF, DIFF) == 1.0
     assert D.similarity(DIFF, DIFF.replace("inserted", "zzz qqq")) < 1.0
+
+
+def test_crlf_files_take_lf_model_diffs_and_keep_their_line_endings():
+    from hp.bank import difftools as D
+    files = {"A.java": "class A {\r\n  int x = 1;\r\n}\r\n"}
+    diff = "--- a/A.java\n+++ b/A.java\n@@ -2 +2 @@\n-  int x = 1;\n+  int x = 2;\n"
+    assert D.apply(files, diff) == {"A.java": "class A {\r\n  int x = 2;\r\n}\r\n"}

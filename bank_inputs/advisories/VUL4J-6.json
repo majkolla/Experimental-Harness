@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-835",
+ "summary": "A specially crafted ZIP archive makes the parser for ZIP entry extra fields loop forever. Both the random-access ZIP file reader and the streaming ZIP input reader use this parser, so any service that opens untrusted ZIP archives can be driven into a denial of service.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://nvd.nist.gov/vuln/detail/CVE-2018-1324"
+ ]
+}

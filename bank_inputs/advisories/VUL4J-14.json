@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-20",
+ "summary": "The file name normalization utility returns malformed inputs such as '//../foo' or '\\\\..\\foo' unchanged instead of rejecting them. Calling code that builds a file path from the normalized result can then reach files in the parent directory (limited path traversal).",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://nvd.nist.gov/vuln/detail/CVE-2021-29425"
+ ]
+}

@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-863",
+ "summary": "The version-control commit-notification endpoint exposes dynamic web lookup paths without permission checks. A network-adjacent attacker without the required permissions can use them to enumerate the server's nodes and users.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2018-1000111"
+ ]
+}

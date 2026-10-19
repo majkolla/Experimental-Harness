@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-78",
+ "summary": "The command-line builder that wraps commands for a Bourne-style shell does not correctly quote or escape executables, arguments and working directories. Values containing double quotes, single quotes, semicolons or shell expansion characters can break out of the quoting and inject additional shell commands.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2017-1000487"
+ ]
+}

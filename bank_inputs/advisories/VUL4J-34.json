@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-79",
+ "summary": "The internationalization interceptor builds a locale object from a request parameter without sanitizing its text. The unsanitized locale value is later rendered in pages, allowing remote attackers to inject script and perform cross-site scripting.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2016-2162"
+ ]
+}

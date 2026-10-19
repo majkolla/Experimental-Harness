@@ -1,0 +1,11 @@
+{
+ "cwe": "CWE-22",
+ "summary": "The servlet that maps wiki page URLs forwards each request to a target taken directly from the user-controlled request path. A specially crafted URL can therefore reach files under the web application's root directory, which an attacker can use to obtain registered users' details.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2019-0225",
+  "https://github.com/advisories/GHSA-pffw-p2q5-w6vh",
+  "https://github.com/apache/jspwiki/commit/88d89d6523802c044cfcb7930cba40d8eeb21da2"
+ ]
+}

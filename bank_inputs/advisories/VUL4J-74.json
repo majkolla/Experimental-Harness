@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-332",
+ "summary": "The secure random generator factory, when configured with an application-supplied seed, seeds the generator with only that seed instead of adding it to the default system seeding. Generated values become predictable and identical across instances, which matters when the output is exposed to an attacker.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2019-3795",
+  "https://github.com/spring-projects/spring-security/commit/1304c958bf9c38940082f3ad1558d413ed82f2b"
+ ]
+}

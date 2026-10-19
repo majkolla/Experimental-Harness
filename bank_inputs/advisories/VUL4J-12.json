@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-835",
+ "summary": "The JPEG image decoder can enter an infinite loop when parsing certain malformed JPEG files. An attacker who supplies such a file to an application that reads images with this library can cause a denial of service.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://nvd.nist.gov/vuln/detail/CVE-2018-17202"
+ ]
+}

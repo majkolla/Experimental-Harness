@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-611",
+ "summary": "The XSS-protection API method that validates XML input (getValidXML) uses a SAX parser with insecure default settings. Supplying XML with external entity declarations enables XXE attacks that let an attacker read server files, make server-side requests, scan internal ports or cause a denial of service.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2016-6798"
+ ]
+}

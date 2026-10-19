@@ -1,0 +1,11 @@
+{
+ "cwe": "CWE-20",
+ "summary": "The OVSDB utility that compares schema version strings assumes well-formed numeric major.minor.patch values. A switch controlled or forged by an attacker can report a null, malformed or non-numeric version, triggering an unhandled exception that crashes the controller's OVSDB service and causes a denial of service.",
+ "status": "draft",
+ "cwe_source": "drafter",
+ "sources": [
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2018-1000615",
+  "https://github.com/advisories/GHSA-84j4-29pv-85g6",
+  "https://github.com/opennetworkinglab/onos/commit/1a783729a1d7e0cd59d59a8dd3a73cdd6ac0f30d"
+ ]
+}

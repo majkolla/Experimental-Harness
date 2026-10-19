@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-116",
+ "summary": "The percent-encoding codec does not honour the set of immune characters supplied by the caller: characters the caller marks as safe to leave unencoded are still encoded. Output encoding used by security controls therefore differs from what the caller configured, and encoded data can be misinterpreted downstream.",
+ "status": "draft",
+ "cwe_source": "drafter",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2013-5960",
+  "https://github.com/ESAPI/esapi-java-legacy/commit/b7cbc53f9cc967cf1a5a9463d8c6fef9ed6ef4f7"
+ ]
+}

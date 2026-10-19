@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-74",
+ "summary": "The XSLT renderer used for edge-side include directives applies a user-specified stylesheet without restricting dangerous processing features. If the backend application reflects such directives, an attacker can supply a malicious stylesheet and achieve remote code execution on the server.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2018-1000854"
+ ]
+}

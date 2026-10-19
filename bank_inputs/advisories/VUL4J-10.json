@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-20",
+ "summary": "A serialized disk-backed uploaded-file item can be deserialized with an attacker-controlled storage directory or file name containing a NUL byte. The storage location is not validated when the object is restored, allowing a remote attacker to write files to arbitrary locations.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2013-2186"
+ ]
+}

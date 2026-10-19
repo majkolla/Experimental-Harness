@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-19",
+ "summary": "The authorization server's default approval and error pages render request-derived values, such as the response_type parameter, through a template engine that also evaluates expression placeholders contained in substituted values. A crafted request can inject an expression that is then evaluated on the server, giving remote code execution.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://github.com/advisories/GHSA-7q9c-h23x-65fq"
+ ]
+}

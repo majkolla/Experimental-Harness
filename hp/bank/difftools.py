@@ -52,7 +52,9 @@ def parse(diff_text):
     """[(old_path, new_path, [hunk, ...])], hunk = (old_start, new_start, [(tag, text)])."""
     files = []
     cur = None
-    lines = diff_text.splitlines()
+    # split on newlines only: str.splitlines would also break a line at a form feed
+    # or another separator that Java sources can contain; tolerate CRLF diffs
+    lines = [l[:-1] if l.endswith("\r") else l for l in diff_text.split("\n")]
     i = 0
     while i < len(lines):
         line = lines[i]
@@ -100,6 +102,7 @@ def apply(files, diff_text, fuzz=60):
     out = dict(files)
     for old_path, new_path, hunks in parse(diff_text):
         src_path = old_path or new_path
+        crlf = False
         if old_path is None:
             src = []
             had_nl = True
@@ -107,6 +110,9 @@ def apply(files, diff_text, fuzz=60):
             if old_path not in out:
                 raise DiffError(f"file not found: {old_path}")
             text = out[old_path]
+            crlf = "\r\n" in text   # model diffs come with LF; match CRLF files line by line
+            if crlf:
+                text = text.replace("\r\n", "\n")
             had_nl = text.endswith("\n")
             src = text.split("\n")
             if had_nl:
@@ -135,7 +141,8 @@ def apply(files, diff_text, fuzz=60):
             continue
         if old_path and old_path != new_path:
             out.pop(old_path, None)
-        out[new_path] = "\n".join(result) + ("\n" if had_nl else "")
+        joined = "\n".join(result) + ("\n" if had_nl else "")
+        out[new_path] = joined.replace("\n", "\r\n") if old_path and crlf else joined
     return out
 
 

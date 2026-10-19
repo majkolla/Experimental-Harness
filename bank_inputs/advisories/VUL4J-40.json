@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-287",
+ "summary": "The check deciding whether a user may update their own account profile does not restrict changes to the email address. A remote authenticated user can change their email to that of another user and then impersonate that user.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2019-3775",
+  "https://github.com/cloudfoundry/uaa/commit/daeedbe499453b06856556f5e9f7e80d2d1ceb03"
+ ]
+}

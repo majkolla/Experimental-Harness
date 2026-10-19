@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-284",
+ "summary": "Request path resolution used for security filter matching mishandles applications deployed under a non-root servlet context path. Because the context path is not correctly normalized and removed from the request URI, crafted request paths can avoid the intended protected-path filters, letting attackers bypass access control.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://nvd.nist.gov/vuln/detail/CVE-2016-6802",
+  "https://cveawg.mitre.org/api/cve/CVE-2016-6802"
+ ]
+}

@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-611",
+ "summary": "When loading SVG documents, the XML parser resolves external entity references in untrusted input. A crafted SVG file can make the server read local files with the privileges of the running process, and the same weakness can be abused for denial of service.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://nvd.nist.gov/vuln/detail/CVE-2017-5662"
+ ]
+}

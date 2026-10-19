@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-611",
+ "summary": "The XML importer parses uploaded files, including files inside an uploaded archive, without disabling DTD and external entity processing. A crafted document can perform an XML external entity attack and read arbitrary files from the server.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2018-20157"
+ ]
+}

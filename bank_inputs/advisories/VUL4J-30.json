@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-20",
+ "summary": "The built-in URL validator used for form fields checks input with a pattern that a specially crafted URL can make extremely expensive to evaluate. An attacker who can submit a URL through a form can overload the server process during validation and cause a denial of service.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://github.com/advisories/GHSA-86vq-8qhc-5rqw"
+ ]
+}

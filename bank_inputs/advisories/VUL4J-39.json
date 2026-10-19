@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-200",
+ "summary": "Authentication details attached to authentication success audit events include the user's HTTP session identifier, so session IDs are written to audit event logs. Anyone able to read these logs can obtain session IDs and use them to impersonate logged-in users.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://github.com/advisories/GHSA-xg5v-696h-c3vr",
+  "https://github.com/cloudfoundry/uaa/commit/a61bfabbad22f646ecf1f00016b448b26a60daf"
+ ]
+}

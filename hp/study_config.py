@@ -17,6 +17,13 @@ placeholder ``TO_PIN_AT_FREEZE`` (model ids, snapshots, weight checksums,
 prices, the Vul4J image ...), and a ``synthetic`` config refuses to load if any
 model uses a real provider, so a synthetic run can never spend money.
 
+A ``rehearsal`` config runs the real pipeline (real Vul4J container, real
+models) with every model slot, including the six commercial ones, served by
+open weights. It exists to prove the whole system end to end before API keys
+exist. It refuses paid providers, keeps its logs apart (``paths.runs`` must
+contain "rehearsal"), never opens the test split and cannot be frozen, so no
+rehearsal number can enter the paper or expose a test-split outcome.
+
 The config file is JSON with ``//`` and ``/* */`` comments (JSONC). Hashes are
 taken over the parsed, canonicalised JSON, so comments never change them. The
 ``freeze`` block is excluded from the config hash (it records that hash).
@@ -30,7 +37,8 @@ import re
 from .config import ConfigError
 
 PLACEHOLDER = "TO_PIN_AT_FREEZE"
-MODES = ("synthetic", "live")
+MODES = ("synthetic", "live", "rehearsal")
+REAL_MODES = ("live", "rehearsal")   # real container and real model calls
 
 # Design structure (spec section 2, 3): fixed by the design, not tunable.
 CORE_GENERATORS = ("A", "B", "C")
@@ -309,6 +317,11 @@ def _check_models(cfg, problems):
         prov = m.get("provider")
         if mode == "live" and prov not in LIVE_PROVIDERS:
             problems.append(f"models.{ref}.provider={prov!r} is not allowed in live mode")
+        if mode == "rehearsal" and prov != "openweight":
+            problems.append(
+                f"models.{ref}.provider={prov!r}: rehearsal mode serves every slot with "
+                "open weights ('openweight'), so a rehearsal can never make a paid call"
+            )
         if mode == "synthetic" and prov not in SYNTHETIC_PROVIDERS:
             problems.append(
                 f"models.{ref}.provider={prov!r}: synthetic mode allows only "
@@ -321,7 +334,7 @@ def _check_models(cfg, problems):
 
         # generator identity (oracle isolation): the leak scan needs the names
         terms = m.get("identity_terms")
-        if mode == "live" and terms != PLACEHOLDER and (
+        if mode in REAL_MODES and terms != PLACEHOLDER and (
                 not isinstance(terms, list) or not terms
                 or not all(isinstance(x, str) and x.strip() for x in terms)):
             problems.append(
@@ -350,7 +363,7 @@ def _check_models(cfg, problems):
 
 def _check_pins(cfg, problems):
     """Q17: a pin rule per provider; open weights need checksum, precision, stack."""
-    if cfg["mode"] != "live":
+    if cfg["mode"] not in REAL_MODES:
         return
     rules = cfg["pin_rules"]
     for ref in active_models(cfg):
@@ -485,7 +498,7 @@ def _check_misc(cfg, problems):
     path = root / sp.get("file", "")
     if not path.is_file():
         problems.append(f"split file not found: {sp.get('file')!r}")
-    elif cfg["mode"] == "live" or sp.get("sha256") != PLACEHOLDER:
+    elif cfg["mode"] in REAL_MODES or sp.get("sha256") != PLACEHOLDER:
         got = sha256_file(path)
         if got != sp.get("sha256"):
             problems.append(
@@ -507,6 +520,27 @@ def _check_misc(cfg, problems):
                 problems.append(f"prompts.{kind} is missing the slot {slot}")
         cfg["_prompts"][kind] = {"text": text, "sha256": sha256_bytes(text.encode())}
 
+    # twin drafting by an open-weight model (sibling.method = openweight_model)
+    if cfg["sibling"].get("method") == "openweight_model":
+        ref = cfg["sibling"].get("model_ref")
+        if ref not in active_models(cfg) or TIER.get(ref) != "open" and cfg["mode"] == "live":
+            problems.append(
+                "sibling.model_ref must name an active open-weight model (X, Y or Z in the "
+                "live study: the corrector stays outside families 1-3)"
+            )
+        elif cfg["mode"] in REAL_MODES and cfg["models"][ref].get("provider") != "openweight":
+            problems.append("sibling.model_ref must be served by 'openweight'")
+        rel = cfg["prompts"].get("sibling")
+        p = root / rel if rel else None
+        if not p or not p.is_file():
+            problems.append(f"prompts.sibling not found: {rel!r} (needed by openweight_model)")
+        else:
+            text = p.read_text()
+            for slot in ("{{ADVISORY}}", "{{FILES}}"):
+                if slot not in text:
+                    problems.append(f"prompts.sibling is missing the slot {slot}")
+            cfg["_prompts"]["sibling"] = {"text": text, "sha256": sha256_bytes(text.encode())}
+
     if cfg["stage1"].get("suite_scope") not in SUITE_SCOPES:
         problems.append(f"stage1.suite_scope must be one of {SUITE_SCOPES}")
     if cfg["sibling"].get("method") not in SIBLING_METHODS:
@@ -514,11 +548,21 @@ def _check_misc(cfg, problems):
 
     if cfg["mode"] == "synthetic" and not isinstance(cfg.get("synthetic_world"), dict):
         problems.append("synthetic mode needs a synthetic_world block")
-    if cfg["mode"] == "live" and "synthetic_world" in cfg:
-        problems.append("live mode must not carry a synthetic_world block")
+    if cfg["mode"] in REAL_MODES and "synthetic_world" in cfg:
+        problems.append(f"{cfg['mode']} mode must not carry a synthetic_world block")
+    if cfg["mode"] == "live" and "rehearsal" in str(cfg["paths"].get("runs", "")):
+        problems.append(
+            "live mode must not write into rehearsal logs: paths.runs contains 'rehearsal' "
+            f"(got {cfg['paths'].get('runs')!r})"
+        )
+    if cfg["mode"] == "rehearsal" and "rehearsal" not in str(cfg["paths"].get("runs", "")):
+        problems.append(
+            "rehearsal mode needs its own logs: paths.runs must contain 'rehearsal' "
+            f"(got {cfg['paths'].get('runs')!r})"
+        )
 
     v = cfg["vul4j"]
-    want = "container" if cfg["mode"] == "live" else "mock"
+    want = "container" if cfg["mode"] in REAL_MODES else "mock"
     if v.get("runner") != want:
         problems.append(f"vul4j.runner must be {want!r} in {cfg['mode']} mode")
 
@@ -611,13 +655,15 @@ def load(cfg_path, require_valid_freeze=True):
     except (KeyError, TypeError, AttributeError) as exc:
         problems.append(f"malformed config section: {exc!r}")
 
-    if cfg["mode"] == "live":
+    if cfg["mode"] in REAL_MODES:
         ph = find_placeholders(cfg)
         if ph:
             problems.append(
-                "live mode refuses placeholder values (" + PLACEHOLDER + ") at: "
+                f"{cfg['mode']} mode refuses placeholder values (" + PLACEHOLDER + ") at: "
                 + ", ".join(ph)
             )
+    if cfg["mode"] == "rehearsal" and (cfg.get("freeze") or {}).get("frozen"):
+        problems.append("a rehearsal config cannot be frozen")
 
     cfg["_config_sha256"] = config_hash(cfg)
     fz = cfg.get("freeze") or {}
@@ -661,6 +707,11 @@ def freeze(cfg_path, artefacts):
     import datetime
 
     cfg = load(cfg_path, require_valid_freeze=False)
+    if cfg["mode"] == "rehearsal":
+        raise ConfigError(
+            "a rehearsal cannot be frozen: freezing opens the test split, and rehearsal "
+            "outcomes on test CVEs would be seen before the real study is frozen"
+        )
     rd = runs_dir(cfg)
     touched = _test_split_work(rd)
     if touched:

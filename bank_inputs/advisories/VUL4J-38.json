@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-74",
+ "summary": "During back-channel ticket validation for single sign-on, parameter values such as the service URL and proxy callback URL are inserted into the validation URL without consistent URL encoding. A remote attacker can inject extra URL parameters, script or HTML through these values.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2014-4172",
+  "https://github.com/apereo/java-cas-client/commit/ab6cbdc3daa451b4fef89c0bd0f4e6568f3aa9ef"
+ ]
+}

@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-835",
+ "summary": "The parser for IPTC ANPA news-wire files can be driven into an infinite loop by a carefully crafted input file. Any application that extracts content or metadata from untrusted files with this parser can be made to hang, causing a denial of service.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2018-8017"
+ ]
+}

@@ -1,0 +1,9 @@
+{
+ "cwe": "CWE-770",
+ "summary": "The property path parser accepts arbitrarily long and complex property path expressions without any limit. An unauthenticated remote attacker can send requests to REST endpoints that parse property paths and cause excessive CPU and memory consumption, resulting in denial of service.",
+ "status": "draft",
+ "cwe_source": "vul4j",
+ "sources": [
+  "https://cveawg.mitre.org/api/cve/CVE-2018-1274"
+ ]
+}

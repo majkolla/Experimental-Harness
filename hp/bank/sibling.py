@@ -3,9 +3,16 @@
 Default method (`sibling.method = author`): the author writes each F by hand
 as a complete patch against the vulnerable version, saved as
 `<inputs>/siblings/<pair_id>.diff`, in the seeded correction order (core
-twins first, then extension twins). This module ingests and validates them;
-it never writes F itself in live mode. In synthetic mode a synthetic author
-adds the planted fix to V.
+twins first, then extension twins). This module ingests and validates them.
+In synthetic mode a synthetic author adds the planted fix to V.
+
+Method `openweight_model` (the spec's sensitivity method, and what a rehearsal
+uses): the open-weight model `sibling.model_ref` drafts the correction of V
+from the advisory and V's post-patch code (prompt `prompts.sibling`), once per
+pair; the draft becomes a complete patch against the vulnerable version and is
+validated exactly like an author's F. A draft that fails is logged `invalid`
+and is not re-drawn (no re-rolling after seeing validation). In the live study
+such twins still need the author's check before they enter the bank.
 
 Validation (10/10, Q14 protocol): F applies and builds once; one screening run
 of the full suite; then 10 clean reruns in which every ordinary test and the
@@ -23,7 +30,51 @@ import pathlib
 
 from .. import synthworld
 from . import difftools
-from .vul4j import ApplyError, BuildError
+from .vul4j import ApplyError, BuildError, unified_diff
+
+
+def sibling_input(template, advisory, files):
+    """The only builder of the twin-drafting prompt: advisory and V's post-patch code."""
+    adv = f"Weakness class: {advisory['cwe']}\n\n{advisory['summary']}"
+    parts = [f"### {path}\n\n```java\n{files[path].rstrip()}\n```" for path in sorted(files)]
+    return template.replace("{{ADVISORY}}", adv).replace("{{FILES}}", "\n\n".join(parts))
+
+
+def model_author(cfg, runner, cve, v_diff):
+    """(f_diff or None, draft record). One draft by `sibling.model_ref`."""
+    from .. import engine, leaks, providers, schema
+    from .generate import advisory_for
+
+    ref = cfg["sibling"]["model_ref"]
+    spec = {**cfg["models"][ref], "_ref": ref}
+    changed = sorted(difftools.changed_lines(v_diff))
+    base = runner.read_files(cve, changed, "vulnerable")
+    try:
+        v_post = difftools.apply(base, v_diff)
+    except difftools.DiffError as exc:
+        return None, {"model_ref": ref, "status": "v_does_not_apply", "error": str(exc)[:200]}
+    prompt = sibling_input(cfg["_prompts"]["sibling"]["text"], advisory_for(cfg, cve), v_post)
+    hits = leaks.find(prompt, leaks.oracle_patterns(runner.metadata(cve)))
+    if hits:
+        return None, {"model_ref": ref, "model": spec.get("model"), "status": "leak",
+                      "error": f"oracle material in the prompt: {sorted({h[0] for h in hits})}"}
+    settings = engine.call_settings(cfg, "generation")
+    recs = providers.call_with_retries(spec, prompt, settings, contract=schema.TEXT)
+    rec = recs[-1]
+    draft = {"model_ref": ref, "model": spec.get("model"), "status": rec["status"],
+             "attempts": len(recs), "tokens": {"in": rec.get("in_tokens"), "out": rec.get("out_tokens")},
+             "raw": (rec.get("text") or "")[:20000]}
+    if rec["status"] != schema.OK:
+        # a failed call says nothing about the pair: no row, a resumed run asks again
+        return None, {**draft, "retry": True, "error": rec.get("reason") or rec.get("error")}
+    d = difftools.extract_diff(rec.get("text"))
+    if not d:
+        return None, {**draft, "error": "no unified diff in the response"}
+    try:
+        f_post = difftools.apply(v_post, d)
+    except difftools.DiffError as exc:
+        return None, {**draft, "error": f"draft does not apply to V: {exc}"[:200]}
+    return unified_diff(base, f_post), draft
 
 
 def synthetic_author(world, cve, v_diff, pair_id):
@@ -99,6 +150,11 @@ def run(cfg, runner, split_name, runs_dir):
     in_dir = cfg["_root"] / cfg["sibling"]["input_dir"]
     world = synthworld.world_for(cfg) if cfg["mode"] == "synthetic" else None
     out, stop = [], None
+
+    def log(row):
+        """Every row is written the moment it exists (validation takes hours)."""
+        logs.append(runs_dir / logs.FILES["siblings"], [row])
+        out.append(row)
     for s in sel:
         prev = done.get(s["pair_id"])
         if prev and prev["status"] in ("valid", "infeasible"):
@@ -108,7 +164,26 @@ def run(cfg, runner, split_name, runs_dir):
         base = {k: s[k] for k in ("pair_id", "cve", "cluster", "split", "generator", "block",
                                   "correction_order")}
         declared_infeasible = False
-        if world is not None:
+        draft = None
+        if world is None and method == "openweight_model":
+            if prev and prev["status"] == "invalid":
+                continue  # one draft per pair, never re-drawn
+            if prev and prev["status"] == "drafted":
+                f_diff, draft = prev["f_diff_text"], prev.get("draft")   # validate the logged draft
+            else:
+                f_diff, draft = model_author(cfg, runner, s["cve"], v_diff)
+                if f_diff is None and draft.get("retry"):
+                    continue
+                row = {"kind": "sibling", **base, "method": method,
+                       "status": "drafted" if f_diff is not None else "invalid",
+                       "f_diff_sha": difftools.sha(f_diff) if f_diff else None,
+                       "f_diff_text": f_diff, "vf_changed_lines": None,
+                       "added_comment_lines": None, "rubric_flags": [],
+                       "validation": None if f_diff else {"stage": "draft"}, "draft": draft}
+                log(row)   # logged before validation: a crash never re-draws this pair
+                if f_diff is None:
+                    continue
+        elif world is not None:
             f_diff = synthetic_author(world, s["cve"], v_diff, s["pair_id"])
             declared_infeasible = f_diff is None
         else:
@@ -122,21 +197,23 @@ def run(cfg, runner, split_name, runs_dir):
                     and prev.get("f_diff_sha") == difftools.sha(f_diff)):
                 continue  # the same invalid F again: wait for a corrected file
         if declared_infeasible:
-            out.append({"kind": "sibling", **base, "method": method, "status": "infeasible",
-                        "f_diff_sha": None, "f_diff_text": None, "vf_changed_lines": None,
-                        "added_comment_lines": None, "rubric_flags": [], "validation": None})
+            log({"kind": "sibling", **base, "method": method, "status": "infeasible",
+                 "f_diff_sha": None, "f_diff_text": None, "vf_changed_lines": None,
+                 "added_comment_lines": None, "rubric_flags": [], "validation": None})
             continue
         valid, details = validate(runner, s["cve"], f_diff, repro[s["cve"]], cfg["design"]["reruns"])
         changed, comments, flags, vf = rubric(runner, s["cve"], v_diff, f_diff,
                                               cfg["caps"]["sibling_target_lines"])
-        out.append({"kind": "sibling", **base, "method": method,
-                    "status": "valid" if valid else "invalid",
-                    "f_diff_sha": difftools.sha(f_diff), "f_diff_text": f_diff, "vf_diff": vf,
-                    "vf_changed_lines": changed, "added_comment_lines": comments,
-                    "rubric_flags": flags, "validation": details})
+        row = {"kind": "sibling", **base, "method": method,
+               "status": "valid" if valid else "invalid",
+               "f_diff_sha": difftools.sha(f_diff), "f_diff_text": f_diff, "vf_diff": vf,
+               "vf_changed_lines": changed, "added_comment_lines": comments,
+               "rubric_flags": flags, "validation": details}
+        if draft is not None:
+            row["draft"] = draft
+        log(row)
     corrected = len([r for r in out if r["status"] == "valid"]) + sum(
         1 for r in done.values() if r["split"] == split_name and r["status"] == "valid")
-    out.append({"kind": "sibling_stop", "split": split_name,
-                "stopped_at_order": stop, "pairs_corrected": corrected})
-    logs.append(runs_dir / logs.FILES["siblings"], out)
+    log({"kind": "sibling_stop", "split": split_name,
+         "stopped_at_order": stop, "pairs_corrected": corrected})
     return out

@@ -1,0 +1,10 @@
+{
+ "cwe": "CWE-20",
+ "summary": "The action mapper mishandles action names that do not match the allowed-names pattern: instead of rejecting them, it strips the disallowed parts and continues dispatching the resulting name. Crafted action names can therefore survive this clean-up and reach action resolution, with unspecified security impact.",
+ "status": "draft",
+ "cwe_source": "drafter",
+ "sources": [
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2016-4436",
+  "https://github.com/apache/struts/commit/237432512df0e27013f7c7b9ab59fdce44ca34a5"
+ ]
+}

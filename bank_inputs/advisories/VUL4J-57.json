@@ -1,0 +1,11 @@
+{
+ "cwe": "CWE-276",
+ "summary": "The workflow step that triggers runs of other jobs does not check whether the identity the current run executes as has permission to start the target job. A user who can only see, or merely discover, a job can therefore trigger it from their own workflow script.",
+ "status": "draft",
+ "cwe_source": "nvd",
+ "sources": [
+  "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2017-1000089",
+  "https://github.com/advisories/GHSA-8jx9-7j5m-79x4",
+  "https://github.com/jenkinsci/pipeline-build-step-plugin/commit/3dfefdec1f7b2a4ee0ef8902afdea720b1572cb3"
+ ]
+}
