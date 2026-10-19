@@ -355,3 +355,26 @@ Added after the independent code review (10 October; regression tests in `tests/
 30. **Counts next to rates.** Every per-cell U, A, C in the development and test reports carries its unresolved trials per state and the pairs left out of C (with the share); totals per reviewer and overall. (The earlier docs said these were counted; they were counted in code but not reported.)
 31. **Container workspaces.** `ContainerVul4J` removes each workspace on release (contents first from inside the container, since they may be root-owned), keeps one source-only checkout per (CVE, version) for file reads, and caches `vul4j info`.
 
+Added 14 October (live contact; tests in `tests/study/test_vul4j_container.py`,
+`test_rehearsal.py`, `test_sibling_model.py`, `test_leaks.py`, `test_openweight.py`):
+
+32. **Leak-scan scope.** Oracle patterns (ids, slug, commit hashes, PoV names and output) apply to the whole review input; model ids and identity terms apply only to the lines the patch adds, as case-sensitive whole words. Identity can only come from generator-written text; project code legitimately names vendors (`com.google.common`). Generator inputs: oracle patterns only.
+33. **Applying model diffs.** `ContainerVul4J` applies V and F with `difftools.apply` (exact context, line offsets tolerated), the same function that builds the reviewers' post-patch code. `apply_fail` therefore means the same in classification and review.
+34. **Test selection.** Vul4J runs either the full command (`-b all`) or the PoV-only command (`-b povs`); any other selection (`module_fallback`) runs the full command and filters the results.
+35. **Rehearsal mode.** Real container and models, open weights in all nine slots, development split only, never frozen, own logs. Its numbers are pipeline checks, never results.
+36. **Model-drafted twins.** `openweight_model` drafts one F per pair (no re-draw after validation); in the live study they need the author's check.
+37. **Parallel bank stages.** `--jobs` for Stage 1 and classification; results are independent of the number of jobs (test).
+
+Added 14 October after an independent review of items 32-37 (tests in `tests/study/test_vul4j_container.py`, `test_bank_pipeline.py`, `test_sibling_model.py`, `test_leaks.py`, `test_rehearsal.py`, `test_difftools.py`):
+
+38. **One container per checkout.** Checkout, apply, compile and every test run of a version run in one container (`docker run -d` + `docker exec`); `compile_cmd` installs modules into the container's Maven repository and multi-module tests read them there. In-container `timeout -k 30`, `--init`, per-container CPU and memory limits.
+39. **Infrastructure failures are not outcomes.** Checkout failure, Docker errors (125-127), a killed build (137, 143) or a build timeout raise `InfraError`: nothing is logged and a resumed run retries the item. A test-run timeout or kill is an incomplete run (indeterminate), as before. Stage 1 logs a human patch that does not apply as `build_fail`.
+40. **Interrupts.** Docker clients run in their own session; Ctrl-C kills the running containers, cancels queued items and logs nothing half-done (`hp/bank/parallel.py`).
+41. **The full-suite command.** Vul4J's `-b all` omits `cmd_options`; the runner appends them to `test_all_cmd` in the checkout and adds a missing Maven `test` goal (VUL4J-16). Recorded as `test_all_rule` in every reproduction row's runner description.
+42. **The image.** Built from Vul4J commit 376411d by `scripts/azure/setup.sh` and pinned by image id (`pin_kind: image_id`); `vul4j-check` reports the build commit, the warm-up and its failures.
+43. **Twin drafts are logged before validation** (status `drafted`) and re-validated, never re-drawn, after a crash; a failed call writes no row (asked again on resume); a leak in the twin prompt makes the pair invalid.
+44. **Leak scan, refined.** Identity terms match case-insensitively as words not preceded by a letter, digit, '_' or '.' and not followed by a letter (catches "qwen", "GPT4"; not com.google); they apply to added lines that are not already in the pre-patch files (a rewritten licence header is not generator text) and to free text after a hunk header.
+45. **Text handling.** Diffs are split on newlines only (not form feeds); CRLF files take LF model diffs and keep their endings; patched files are written byte-faithfully (surrogateescape); deletions and renames apply.
+46. **PoV names** that differ from the reports only in case are mapped to the dataset name (VUL4J-44); the signature's stack frame must be in the PoV class itself, not a class whose name starts with it.
+47. **Rehearsal memory and logs.** Rehearsal A/B/C use the X/Y/Z weights (one loaded instance each); Ollama runs with `NUM_PARALLEL=1`. A live config refuses a runs path containing "rehearsal".
+
