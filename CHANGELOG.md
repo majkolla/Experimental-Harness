@@ -1,5 +1,79 @@
 # Changelog
 
+## 0.4.1 (2026-10-16): smoke test on a small VM
+
+### Added
+- **`study.smoke.jsonc`**: the rehearsal with small open-weight models in all nine
+  slots (generators qwen3.5:9b, granite4.2:8b, gemma4:e4b; cheap reviewers the
+  Pilot 0 models), 32k generator context, `attempts_per_cell` 2, `reruns` 3,
+  `workers` 2, 6-CPU/32 GB containers, logs in `runs/smoke-rehearsal`. Scope comes
+  from `reproduce --cves`; later stages only touch eligible CVEs, so the
+  registered split is unchanged. Guide: `docs/smoke-test.md`.
+- **`tests/study/test_smoke_config.py`**: every command of the smoke guide through
+  the real adapters (fake docker, fake Ollama), with and without near-misses
+  (an empty bank must still reach `analyse-dev` and `audit-logs`). 385 tests.
+
+### Changed
+- **`scripts/azure/setup.sh`**: pulls the models of `MODEL_CONFIGS` (default
+  `study.rehearsal.jsonc study.jsonc`) and does so *before* the Vul4J image build,
+  so a wrong model tag fails in minutes, not after hours. `OLLAMA_MAX_LOADED` and
+  `MIN_FREE_GB` are settable. `.venv-linux/` is git-ignored.
+
+## 0.4.0 (2026-10-14): live contact, rehearsal mode, study host
+
+Everything still runs offline (382 tests); the new paths are checked against the
+Vul4J and Ollama sources and tested with fakes that reproduce their behaviour.
+
+### Changed
+- **`ContainerVul4J` rewritten against the Vul4J source** (commit 376411d). Metadata
+  is read from the checkout's `VUL4J/vulnerability_info.json` and
+  `{vulnerable,human_patch}/paths.json` (`vul4j info` logs to stderr, not stdout);
+  `vul4j test -b all|povs` (there is no `--tests`); reports found anywhere under
+  `target/surefire-reports`, `target/failsafe-reports` or `build/test-results`
+  (multi-module Maven and Gradle); `--platform linux/amd64`; configurable network,
+  timeouts and docker binary. Model diffs are applied with `difftools.apply`, the
+  function the review stage uses, instead of `git apply`.
+- **Ollama reasoning switch**: `reasoning_params.think` is sent as the top-level
+  `think` field (inside `options` it was ignored); `keep_alive`; `thinking_chars`
+  in the call metadata.
+- **Leak scan scope** (PLAN section 10 item 32): model ids and identity terms apply
+  only to the lines a patch adds, as case-sensitive whole words; oracle patterns
+  still apply to the whole input. Generator inputs are scanned for oracle
+  patterns only. Before, a CVE whose code imports `com.google...` had every pair
+  excluded from review.
+- **Parallel Stage 1 and classification**: `--jobs N`; rows are logged as each
+  CVE or attempt finishes.
+- Live mode refuses an advisory still marked `"status": "draft"`.
+
+### Changed after an independent review (PLAN section 10 items 38-47)
+- One container per checkout (`docker exec`), so `compile`'s Maven installs reach the tests;
+  in-container timeouts, `--init`, CPU and memory limits.
+- `InfraError`: Docker, OOM, checkout and build-timeout failures are never logged as
+  outcomes; a resumed run retries them. Ctrl-C kills containers and logs nothing half-done.
+- `test_all_cmd` gets the dataset's `cmd_options` and a missing Maven `test` goal.
+- The Vul4J image is built from commit 376411d and pinned by image id; `vul4j-check`
+  reports its provenance and warm-up failures.
+- Twin drafts logged before validation; leak scan refined (case-insensitive words, only
+  text the generator wrote); newline-only diff splitting, CRLF files, byte-faithful
+  writes, deletions; PoV names mapped case-insensitively; rehearsal stand-ins share the
+  X/Y/Z weights; live configs refuse rehearsal log paths.
+
+### Added
+- **Rehearsal mode** (`study.rehearsal.jsonc`): the real pipeline with open-weight
+  stand-ins in all nine slots; refuses paid providers, the test split, `freeze`
+  and `confirm`; logs under `runs/rehearsal`; reports carry a banner.
+- **Twins by an open-weight model** (`sibling.method = openweight_model`, the
+  spec's sensitivity method): one draft per pair from V's post-patch code,
+  returned as a patch against the vulnerable version and validated like an
+  author's twin. Prompt `prompts/sibling_v13.md`.
+- `study.py pin` (open-weight pins from Ollama, Vul4J digest from Docker, written
+  into the config in place) and `study.py vul4j-check` (one-CVE image smoke test).
+- `scripts/azure/setup.sh`, `docs/azure-runbook.md`.
+- 79 drafted advisories in `bank_inputs/advisories/`, `docs/advisories_review.md`.
+- Proposed X/Y/Z: `qwen3.8:27b-q8_0`, `granite4.2:30b-q8_0`,
+  `devstral-small-2:24b-instruct-2512-q8_0` (families outside Anthropic, OpenAI,
+  Google).
+
 ## 0.3.0 (2026-10-09): Experiment Specification v1.3
 
 Branch `study-v1.3`. Implements the v1.3 study next to the unchanged Experiment 1
