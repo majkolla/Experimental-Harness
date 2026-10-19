@@ -23,7 +23,13 @@ provisional items and what is still a placeholder are in **`docs/study.html`**.
 ```
 python study.py validate      study.jsonc                    # live config: refused while any pin is TO_PIN_AT_FREEZE
 python study.py selftest      [--full]                        # the whole study offline: 9 synthetic models, mock Vul4J
-python -m pytest tests -q                                     # 355 tests, no network, no paid calls
+python -m pytest tests -q                                     # 382 tests, no network, no paid calls
+
+# on the study host (docs/azure-runbook.md): pins, image check, then a rehearsal with
+# open-weight stand-ins in every slot (development split only, never frozen)
+python study.py pin           study.rehearsal.jsonc --write   # weights, quantisation, Ollama, Vul4J image id
+python study.py vul4j-check   study.rehearsal.jsonc --cve VUL4J-12
+python study.py reproduce     study.rehearsal.jsonc --cves <dev CVEs> --jobs 8
 
 # a real run, in order (live config, once every pin is set)
 python study.py timing-pilot  study.jsonc --cves VUL4J-51,VUL4J-15,VUL4J-3 --runs 3
@@ -43,6 +49,9 @@ python study.py audit-logs    study.jsonc
 | Path | Role |
 |---|---|
 | `study.jsonc` / `study.synthetic.jsonc` | live config (every pin a placeholder) / offline config |
+| `study.rehearsal.jsonc` | rehearsal: real container and models, open-weight stand-ins in all nine slots |
+| `scripts/azure/setup.sh`, `docs/azure-runbook.md` | the study host: Docker, Vul4J image, Ollama, models, venv |
+| `bank_inputs/advisories/` | the 79 advisories (drafts until reviewed; `docs/advisories_review.md`) |
 | `hp/study_config.py` | JSONC loader, config and code hashes, freeze, the refusal conditions |
 | `hp/providers/` | Anthropic, OpenAI, Google, open-weight (Ollama + pins), synthetic world, legacy synthetic |
 | `hp/engine.py` | dispatcher: admission per candidate, four-attempt budget across resumes, pins, cost |
@@ -257,6 +266,11 @@ upstream of all n reviewers and becomes an unmeasured common cause.
 
 ## Not yet done
 
+- **First live contact (v1.3 study).** The Vul4J adapter and the Ollama path are
+  checked against the tools' source and tested with fakes, not yet run against
+  the real image and server: `vul4j-check`, then a rehearsal
+  (`docs/azure-runbook.md`). Advisories are drafts. Twins for the study are
+  author-written.
 - **Real task bank.** The single biggest remaining item, and the one that decides
   whether the paper has a result. Needs near-miss patches (vulnerable ∧
   functionally passing) with independently adjudicated labels and an
@@ -284,7 +298,7 @@ upstream of all n reviewers and becomes an unmeasured common cause.
 
 ```
 pip install -r requirements.txt        # pytest only; provider SDKs are optional
-pip install anthropic openai ollama    # whichever backends the config uses
+pip install anthropic openai google-genai "ollama>=0.6"   # whichever backends the config uses
 export ANTHROPIC_API_KEY=... OPENAI_API_KEY=...
 ```
 
