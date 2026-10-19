@@ -1,0 +1,43 @@
+item,group,label,cwe,qwen,gemma,granite
+VUL4J-12:safe,apache/commons-imaging,safe,CWE-835,0.333,1.000,1.000
+VUL4J-12:vulnerable,apache/commons-imaging,vulnerable,CWE-835,0.667,1.000,0.667
+VUL4J-13:safe,apache/commons-imaging,safe,CWE-835,0.000,0.667,1.000
+VUL4J-13:vulnerable,apache/commons-imaging,vulnerable,CWE-835,0.000,0.000,1.000
+VUL4J-18:safe,apache/jspwiki,safe,CWE-22,0.000,1.000,1.000
+VUL4J-18:vulnerable,apache/jspwiki,vulnerable,CWE-22,0.000,1.000,1.000
+VUL4J-22:safe,apache/shiro,safe,CWE-284,0.000,1.000,1.000
+VUL4J-22:vulnerable,apache/shiro,vulnerable,CWE-284,0.333,0.333,1.000
+VUL4J-26:safe,apache/struts,safe,CWE-20,0.000,1.000,1.000
+VUL4J-26:vulnerable,apache/struts,vulnerable,CWE-20,0.000,0.000,1.000
+VUL4J-29:safe,apache/struts,safe,CWE-264,0.000,0.000,0.000
+VUL4J-29:vulnerable,apache/struts,vulnerable,CWE-264,0.000,0.000,0.000
+VUL4J-30:safe,apache/struts,safe,CWE-20,0.000,1.000,0.333
+VUL4J-30:vulnerable,apache/struts,vulnerable,CWE-20,0.000,0.000,0.333
+VUL4J-31:safe,apache/struts,safe,Not Mapping,0.000,0.000,0.000
+VUL4J-31:vulnerable,apache/struts,vulnerable,Not Mapping,0.000,0.000,0.000
+VUL4J-32:safe,apache/struts,safe,Not Mapping,0.000,1.000,1.000
+VUL4J-32:vulnerable,apache/struts,vulnerable,Not Mapping,0.000,1.000,1.000
+VUL4J-33:safe,apache/struts,safe,CWE-77,0.000,0.000,0.333
+VUL4J-33:vulnerable,apache/struts,vulnerable,CWE-77,0.000,0.000,0.000
+VUL4J-34:safe,apache/struts,safe,CWE-79,0.000,1.000,1.000
+VUL4J-34:vulnerable,apache/struts,vulnerable,CWE-79,0.000,1.000,1.000
+VUL4J-35:safe,apache/struts,safe,CWE-352,0.667,0.000,0.667
+VUL4J-35:vulnerable,apache/struts,vulnerable,CWE-352,0.000,0.000,0.667
+VUL4J-36:safe,apache/tika,safe,CWE-835,0.000,1.000,0.000
+VUL4J-36:vulnerable,apache/tika,vulnerable,CWE-835,0.000,1.000,0.000
+VUL4J-41:safe,codehaus-plexus/plexus-archiver,safe,CWE-22,0.333,1.000,1.000
+VUL4J-41:vulnerable,codehaus-plexus/plexus-archiver,vulnerable,CWE-22,0.000,1.000,0.000
+VUL4J-43:safe,eclipse/rdf4j,safe,CWE-22,0.000,0.000,0.667
+VUL4J-43:vulnerable,eclipse/rdf4j,vulnerable,CWE-22,0.000,0.000,1.000
+VUL4J-5:safe,apache/commons-compress,safe,Not Mapping,0.000,1.000,1.000
+VUL4J-5:vulnerable,apache/commons-compress,vulnerable,Not Mapping,0.000,1.000,0.667
+VUL4J-67:safe,spring-projects/spring-data-commons,safe,CWE-770,0.000,1.000,0.333
+VUL4J-67:vulnerable,spring-projects/spring-data-commons,vulnerable,CWE-770,0.333,1.000,1.000
+VUL4J-6:safe,apache/commons-compress,safe,CWE-835,0.333,0.000,0.000
+VUL4J-6:vulnerable,apache/commons-compress,vulnerable,CWE-835,0.333,0.000,0.333
+VUL4J-78:safe,x-stream/xstream,safe,CWE-502,0.000,0.333,0.000
+VUL4J-78:vulnerable,x-stream/xstream,vulnerable,CWE-502,0.000,0.667,0.000
+VUL4J-7:safe,apache/commons-compress,safe,CWE-835,0.667,1.000,0.667
+VUL4J-7:vulnerable,apache/commons-compress,vulnerable,CWE-835,0.333,1.000,0.333
+VUL4J-8:safe,apache/commons-compress,safe,CWE-835,0.000,0.000,0.667
+VUL4J-8:vulnerable,apache/commons-compress,vulnerable,CWE-835,0.000,0.000,1.000

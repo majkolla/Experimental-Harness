@@ -1,0 +1,11 @@
+{
+  "reviewers": [
+    {"name": "qwen",   "provider": "ollama", "model": "qwen3.5:4b",    "temperature": 0.7, "num_ctx": 8192, "think": false},
+    {"name": "gemma",  "provider": "ollama", "model": "gemma4:e2b",    "temperature": 0.7, "num_ctx": 8192, "think": false},
+    {"name": "granite","provider": "ollama", "model": "granite4.2:3b", "temperature": 0.7, "num_ctx": 8192, "think": false}
+  ],
+  "trials": 3,
+  "concurrency": 1,
+  "bootstrap_draws": 2000,
+  "seed": 1
+}
