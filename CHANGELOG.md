@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.2 (2026-10-21): acceptance test
+
+### Added
+- **`study.py acceptance CONFIG`** (`hp/acceptance.py`): known-answer checks on the study
+  host, every expected answer fixed in advance. *analysis*: the synthetic study recovers
+  its planted structure and recomputes identically. *vul4j*: image provenance, Stage 1
+  `eligible`, and five canary patches per CVE with known classes (human patch `blocked`,
+  comment-only change `near_miss`, syntax error `build_fail`, wrong context and empty
+  response `apply_fail`), plus the twin validator on the human patch (valid) and the
+  comment-only change (invalid). *models*: pins, the context guard, one schema-valid review
+  and (generators) one generation of a fixed toy diff per distinct model. *logs*: audit and
+  analyse-dev recomputed from the logs equals `dev_report.json`. Writes only to
+  `runs/acceptance/`; exits 1 unless accepted. Canaries are placed after the package
+  line (never inside a comment) or at the end of the file, in the file's line endings.
+- `tests/study/test_acceptance.py`: every section through the real adapters with fakes,
+  and three defects it must catch (a runner that never reports a build failure, an Ollama
+  upgrade after pinning, an edited development report). 396 tests.
+
 ## 0.4.1 (2026-10-16): smoke test on a small VM
 
 ### Added
