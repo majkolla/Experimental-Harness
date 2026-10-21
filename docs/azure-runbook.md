@@ -33,7 +33,14 @@ python study.py pin study.rehearsal.jsonc --write     # weight checksums, quanti
 python study.py validate study.rehearsal.jsonc
 python study.py vul4j-check study.rehearsal.jsonc --cve VUL4J-12   # development, Maven
 python study.py vul4j-check study.rehearsal.jsonc --cve VUL4J-70   # Gradle (all 9 Gradle CVEs are in the test split)
+python study.py acceptance study.rehearsal.jsonc --cves VUL4J-12,VUL4J-5,VUL4J-70 --jobs 3   # must end ACCEPTED
 ```
+
+**`acceptance`** checks known answers on the real host: the analysis on the synthetic
+world, Vul4J canary patches with known classes, every open-weight model's pins and
+output schema, and (after a run) that the development report recomputes from the logs.
+See `docs/smoke-test.md` for the table of checks. Run it again on the study host before
+the live study, and after any change to the image, Ollama or the models.
 
 **The Vul4J image is built, not pulled.** The setup script builds it from Vul4J commit
 `376411d`, the version the harness adapter was checked against. The build reproduces every
