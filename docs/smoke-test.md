@@ -64,6 +64,7 @@ C=study.smoke.jsonc
 python study.py pin $C --write
 python study.py validate $C
 python study.py vul4j-check $C --cve VUL4J-12
+python study.py acceptance $C --cves VUL4J-12,VUL4J-5 --jobs 2   # known answers; must end ACCEPTED
 python study.py timing-pilot $C --cves VUL4J-12 --runs 1
 python study.py reproduce $C --cves VUL4J-12,VUL4J-5,VUL4J-41 --jobs 2
 python study.py generate  $C --split development
@@ -74,11 +75,29 @@ python study.py bank      $C --split development
 python study.py review    $C --split development --expb
 python study.py analyse-dev $C
 python study.py audit-logs  $C
+python study.py acceptance $C --only logs        # the dev report recomputes identically from the logs
 ```
 
 Every command resumes; after an interruption run it again. Logs: `runs/smoke-rehearsal/`.
 The three CVEs are development CVEs from three repositories (commons-imaging,
 commons-compress, plexus-archiver). Only CVEs that `reproduce` marks `eligible` go further.
+
+## The acceptance test (`study.py acceptance`)
+
+Every check has an answer fixed in advance, so a FAIL means a defect in the host, the
+image, the adapter or the analysis, never a property of a model. It writes only to
+`runs/acceptance/` (a `.txt` and a `.json` per run) and exits 1 unless ACCEPTED.
+
+| Section | What is checked | Expected |
+|---|---|---|
+| analysis | the whole study on the synthetic world (planted behaviour, mock Vul4J) | planted common cause and same-model blind spot recovered; confirmatory numbers recomputed identically |
+| vul4j | per CVE, real container: image provenance, Stage 1, five canary patches, twin validator | `eligible`; human patch -> `blocked`, comment-only change -> `near_miss`, syntax error -> `build_fail`, wrong context and empty response -> `apply_fail`; validator accepts the human patch, rejects the comment-only change |
+| models | per distinct model: pins, context guard, one review and (generators) one generation of a fixed toy diff | pins match; oversized prompt refused; schema-valid verdict, pinned tag served, no thinking text, prompt fits `num_ctx`. A generated diff that does not apply is a WARN (weak model), not a FAIL |
+| logs | after a run: audit, and analyse-dev recomputed from the logs alone | identical to `dev_report.json` |
+
+Run time on the T4 VM: analysis ~1 min; models ~10-20 min; Vul4J ~20-60 min per CVE
+(7 builds and ~16 suite runs at `--reruns 2`; CVEs run in parallel with `--jobs`).
+Sections can be run alone (`--only models`), e.g. while waiting for something else.
 
 ## Go / no-go
 
@@ -86,6 +105,7 @@ commons-compress, plexus-archiver). Only CVEs that `reproduce` marks `eligible` 
 |---|---|---|
 | `setup.sh` step 4 | six models pulled | a tag does not exist: change it in `study.smoke.jsonc` (only `qwen3.5:4b`, `granite4.2:3b`, `gemma4:e2b` are known to exist, from Pilot 0) |
 | `vul4j-check` | commit True, warm-up ran True, ends `OK` | a build without network fails: set `vul4j.network` to `"bridge"` and note it |
+| `acceptance` | `ACCEPTED` (WARNs allowed) | the failing row names the check and the expected vs actual answer; do not start the smoke run |
 | `reproduce` | 3 `eligible` | the status (`build_fail`, `pov_unstable`, `suite_unstable`) says where |
 | `generate` | 36 calls (3 CVEs x 6 generators x 2) | many `context_overflow`: 32k is too small for that CVE's files |
 | `classify` | some `near_miss` | see below |
