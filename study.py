@@ -286,6 +286,24 @@ def cmd_selftest(a):
     print(f"self-test directory: {d}")
 
 
+def cmd_acceptance(a):
+    """Known-answer acceptance test of the study host (hp/acceptance.py). Writes only
+    to runs/acceptance/; exits 1 if any check fails."""
+    from hp import acceptance
+
+    cfg, _ = _cfg(a)
+    only = tuple(s for s in a.only.split(",") if s)
+    bad = set(only) - set(acceptance.SECTIONS)
+    if bad:
+        raise SystemExit(f"--only: unknown section(s) {sorted(bad)}; choose from {acceptance.SECTIONS}")
+    rep, path = acceptance.run(cfg, cves=[c for c in a.cves.split(",") if c], reruns=a.reruns,
+                               jobs=a.jobs, only=only)
+    print(rep.text())
+    print(f"report: {path}")
+    if rep.failed:
+        raise SystemExit(1)
+
+
 def cmd_audit_logs(a):
     cfg, rd = _cfg(a)
     for fname, counts in logs.audit(rd).items():
@@ -310,6 +328,7 @@ COMMANDS = {
     "audit-logs": cmd_audit_logs,
     "pin": cmd_pin,
     "vul4j-check": cmd_vul4j_check,
+    "acceptance": cmd_acceptance,
 }
 
 
@@ -336,6 +355,13 @@ def parser():
         if name == "pin":
             p.add_argument("--write", action="store_true", help="write the pins into the config")
             p.add_argument("--no-vul4j", action="store_true", help="open weights only")
+        if name == "acceptance":
+            p.add_argument("--cves", default="VUL4J-12",
+                           help="comma-separated CVEs for the Vul4J known-answer checks")
+            p.add_argument("--reruns", type=int, default=2, help="test reruns per canary")
+            p.add_argument("--jobs", type=int, default=1, help="CVEs checked at once")
+            p.add_argument("--only", default="analysis,vul4j,models,logs",
+                           help="sections to run (comma-separated)")
         if name == "vul4j-check":
             p.add_argument("--cve", default="VUL4J-12", help="one CVE (default: a small one)")
         if name == "timing-pilot":
