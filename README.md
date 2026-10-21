@@ -23,12 +23,13 @@ provisional items and what is still a placeholder are in **`docs/study.html`**.
 ```
 python study.py validate      study.jsonc                    # live config: refused while any pin is TO_PIN_AT_FREEZE
 python study.py selftest      [--full]                        # the whole study offline: 9 synthetic models, mock Vul4J
-python -m pytest tests -q                                     # 382 tests, no network, no paid calls
+python -m pytest tests -q                                     # 396 tests, no network, no paid calls
 
 # on the study host (docs/azure-runbook.md): pins, image check, then a rehearsal with
 # open-weight stand-ins in every slot (development split only, never frozen)
 python study.py pin           study.rehearsal.jsonc --write   # weights, quantisation, Ollama, Vul4J image id
 python study.py vul4j-check   study.rehearsal.jsonc --cve VUL4J-12
+python study.py acceptance    study.rehearsal.jsonc            # known answers: analysis, Vul4J canaries, models, logs
 python study.py reproduce     study.rehearsal.jsonc --cves <dev CVEs> --jobs 8
 
 # a real run, in order (live config, once every pin is set)
@@ -268,7 +269,8 @@ upstream of all n reviewers and becomes an unmeasured common cause.
 
 - **First live contact (v1.3 study).** The Vul4J adapter and the Ollama path are
   checked against the tools' source and tested with fakes, not yet run against
-  the real image and server: `vul4j-check`, then a rehearsal
+  the real image and server: `vul4j-check` and `acceptance`, then a smoke run
+  (`docs/smoke-test.md`) and a rehearsal
   (`docs/azure-runbook.md`). Advisories are drafts. Twins for the study are
   author-written.
 - **Real task bank.** The single biggest remaining item, and the one that decides
